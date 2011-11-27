@@ -1,0 +1,11 @@
+
+* Missing border treatment: Nodes, Ways and Relations near a border
+  should be saved in the neighbour tiles, too.
+
+* We don't need seperate node, way and relation maps, recombine them
+  and use 2 bits of the key for marking the type of node
+
+* Get rid of the Java (Tree)Set implementation in HeapMap as it is 
+  memory exhaustion. Write a memory optimized version.
+
+* make it possible to easily switch to other zoom-levels (harder task)
