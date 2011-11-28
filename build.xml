@@ -36,6 +36,7 @@
         <javac
             srcdir="${src.java.dir}"
             destdir="${build.dir}"
+            debug="true"
             nowarn="on">
             <classpath refid="proj.classpath"/>
         </javac>
