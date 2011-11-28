@@ -64,7 +64,7 @@ public class HeapMap implements OsmMap {
 	public int neighbour(long value) {
 		return (int) ((value & NEIGHBOUR_MASK) >> NEIGHBOUR_SHIFT);
 	}
-
+	
 	/* (non-Javadoc)
 	 * @see OsmMap#put(long, int, int, int)
 	 */
@@ -87,6 +87,7 @@ public class HeapMap implements OsmMap {
 				keys[bucket] |= BUCKET_FULL_MASK;
 			}
 			bucket++; count++;
+			bucket = bucket % size;
 
 			if (count >= size)
 				throw new Error("HashMap filled up, increase the (static) size!");
@@ -108,7 +109,8 @@ public class HeapMap implements OsmMap {
 				if (keys[bucket] >= 0)
 					return -1;
 			}
-			bucket++; count++;				
+			bucket++; count++;
+			bucket = bucket % size;
 		}
 	}
 
