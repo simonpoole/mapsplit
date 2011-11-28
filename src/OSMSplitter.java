@@ -177,24 +177,29 @@ public class OSMSplitter {
 	}
 	
 	private void addRelationToMap(Relation r) {
-	
+
 		boolean modified = r.getTimestamp().after(appointmentDate);
 		List<Long> tileList = new ArrayList<Long>();
 		
 		if (r.getTimestamp().after(latestDate))
 			latestDate = r.getTimestamp();
 		
-		
 		for (RelationMember m : r.getMembers()) {
 		
 			switch (m.getMemberType()) {
 			case Node:
 				long tile = nmap.get(m.getMemberId());
+				
+				// The referenced node is not in our data set
+				if (tile == 0)
+					return;
+
+				int tx = nmap.tileX(tile);
+				int ty = nmap.tileY(tile);
+				// TODO: add neighbourhood handling
 
 				// mark tiles as modified
 				if (modified) {
-					int tx = nmap.tileX(tile);
-					int ty = nmap.tileY(tile);
 					modifiedTiles.set(tx << 13 | ty);
 				}
 				
@@ -204,15 +209,24 @@ public class OSMSplitter {
 			case Way:
 				List<Integer> list = wmap.getAllTiles(m.getMemberId());
 				
+				// The referenced way is not in our data set
+				if (list == null)
+					return;
+				
 				if (modified) {
 					for (Integer i : list)
 						modifiedTiles.set(i);
 				}
-			
-				// FIXME: TODO: add ways tiles to tileList..
-				//tileList.addAll(list);
+
+				// TODO: make this a bit more generic / nicer code :/
+				for (int i : list)
+					tileList.add(((long) i) << 38);
 				break;
 			}
+
+			// Just in case, this can happen due to silly input data :'(
+			if (tileList.isEmpty())
+				return;
 			
 			long val = tileList.get(0);
 			int tx = rmap.tileX(val);
@@ -222,7 +236,6 @@ public class OSMSplitter {
 			rmap.put(r.getId(), tx, ty, OsmMap.NEIGHBOURS_NONE);
 			// update map so that the relation knows in which tiles it is needed
 			rmap.update(r.getId(), tileList);
-	
 			
 			// TODO I'm not sure yet if all nodes and all ways belonging to the
 			//      given relation need to be in every tile that this relation
@@ -326,8 +339,6 @@ public class OSMSplitter {
 					tiles = wmap.getAllTiles(id);
 				else if (ec instanceof RelationContainer) {
 					tiles = rmap.getAllTiles(id);
-					// TODO reactivate once we have relations...
-					return;
 				} else {
 					System.err.println("Unknown Element while reading");
 					System.err.println(ec.toString());
@@ -428,7 +439,8 @@ public class OSMSplitter {
 		System.out.println("  -t, --timing       output timing information");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
 		System.out.println("                     after the split the latest change in infile is going to be stored in file");
-		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice the number of IDs)");
+		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
+		System.out.println("                     the number of IDs). If not supplied, defaults will be taken.");
 	}
 	
 
@@ -481,10 +493,12 @@ public class OSMSplitter {
 						mapSizes[j] = Integer.valueOf(vals[j]);
 					break;
 				}
-			} else if (mandatory++ == 0) {
+			} else if (mandatory == 0) {
 				inputFile = args[i];
-			} else if (mandatory++ == 1) {
+				mandatory++;
+			} else if (mandatory == 1) {
 				outputBase = args[i];
+				mandatory++;
 			} else {
 				System.err.println("Ignoring extra argument \"" + args[i] + "\"");
 			}
@@ -496,7 +510,6 @@ public class OSMSplitter {
 			System.exit(3);
 		}
 
-		
 		// Date-setup as fall-back option
 		DateFormat df = DateFormat.getDateTimeInstance();
 		Calendar c = Calendar.getInstance();
@@ -516,6 +529,11 @@ public class OSMSplitter {
 				appointmentDate = df.parse(line);
 			
 			dis.close();
+		}
+		
+		if (verbose) {
+			System.out.println("Reading: " + inputFile);
+			System.out.println("Writing: " + outputBase);
 		}
 		
 		// Actually run the splitter... 
