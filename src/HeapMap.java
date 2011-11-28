@@ -73,8 +73,8 @@ public class HeapMap implements OsmMap {
 
 		int bucket = (int) (key % size);
 		long value = ((long)tileX) << TILE_X_SHIFT | 
-		((long)tileY) << TILE_Y_SHIFT |
-		((long) neighbours) << NEIGHBOUR_SHIFT;
+					 ((long)tileY) << TILE_Y_SHIFT |
+					 ((long) neighbours) << NEIGHBOUR_SHIFT;
 
 		while (true) {
 			if (values[bucket] == 0) {
@@ -96,19 +96,23 @@ public class HeapMap implements OsmMap {
 
 	private int getBucket(long key) {
 		int count = 0;
-
 		int bucket = (int) (key % size);
 
 		while (true) {
-			if ((values[bucket] != 0) && 
-					((keys[bucket] & KEY_MASK) == key)) {
-				return bucket;
+			if (values[bucket] != 0l) {
+				if ((keys[bucket] & KEY_MASK) == key) {
+					return bucket;
+				}
+			} else {
+				return -1;
 			}
+
 			if (count == 0) {
 				// we didn't have an overflow so the value is not stored yet
-				if (keys[bucket] >= 0)
+				if (keys[bucket] >= 0l)
 					return -1;
 			}
+			
 			bucket++; count++;
 			bucket = bucket % size;
 		}
