@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.RelationContainer;
@@ -269,6 +270,10 @@ public class OSMSplitter {
 					Relation r = ((RelationContainer) ec).getEntity();
 					addRelationToMap(r);
 					
+				} else if (ec instanceof BoundContainer) {
+					
+					// nothing todo, we ignore bound tags
+					
 				} else {
 					System.err.println("Unknown Element while reading");
 					System.err.println(ec.toString());
@@ -313,6 +318,8 @@ public class OSMSplitter {
 					new OsmosisSerializer(new BlockOutputStream(new FileOutputStream(file)));
 
 				serializer.setUseDense(true);
+				serializer.configOmit(true);
+				
 				outFiles.put(idx, serializer);
 			}
 		}
@@ -339,10 +346,19 @@ public class OSMSplitter {
 					tiles = wmap.getAllTiles(id);
 				else if (ec instanceof RelationContainer) {
 					tiles = rmap.getAllTiles(id);
+				} else if (ec instanceof BoundContainer) {
+					// nothing todo, we ignore bound tags
+					return;
 				} else {
 					System.err.println("Unknown Element while reading");
 					System.err.println(ec.toString());
 					System.err.println(ec.getEntity().toString());
+					return;
+				}
+				
+				if (tiles == null) {
+					// No tile where we could store the given entity into
+					// This probably is a degenerated relation ;)
 					return;
 				}
 				
