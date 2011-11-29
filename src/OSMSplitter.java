@@ -18,6 +18,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Calendar;
@@ -297,7 +298,7 @@ public class OSMSplitter {
 	}
 	
 	
-	public void store(String basename) throws IOException {
+	public void store(String basename, boolean metadata) throws IOException {
 		
 		complete = false;
 		outFiles = new HashMap<Integer, OsmosisSerializer>();
@@ -318,7 +319,7 @@ public class OSMSplitter {
 					new OsmosisSerializer(new BlockOutputStream(new FileOutputStream(file)));
 
 				serializer.setUseDense(true);
-				serializer.configOmit(true);
+				serializer.configOmit(!metadata);
 				
 				outFiles.put(idx, serializer);
 			}
@@ -404,6 +405,7 @@ public class OSMSplitter {
 	private static Date run(String inputFile, 
 			  		        String outputBase,
 			 			    Date appointmentDate,
+			 			    boolean metadata,
 						    boolean verbose,
 						    boolean timing) throws Exception {
 
@@ -423,7 +425,7 @@ public class OSMSplitter {
 			System.out.println("We have " + modified + " modified tiles to store.");
 		
 		time = System.currentTimeMillis();
-		split.store(outputBase);
+		split.store(outputBase, metadata);
 		time = System.currentTimeMillis() - time;
 		if (timing) {
 			System.out.println("Saving " + modified + " tiles took " + time + "ms");
@@ -453,6 +455,7 @@ public class OSMSplitter {
 		System.out.println("  -h, --help         this help");
 		System.out.println("  -v, --verbose      additional informational output");
 		System.out.println("  -t, --timing       output timing information");
+		System.out.println("  -m, --metadata     store metadata in tile-files (normaly not needed)");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
 		System.out.println("                     after the split the latest change in infile is going to be stored in file");
 		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
@@ -469,6 +472,7 @@ public class OSMSplitter {
 		String outputBase = null;
 		boolean verbose = false;
 		boolean timing = false;
+		boolean metadata = false;
 		String dateFile = null;
 		int[] mapSizes = new int[]{NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE};
 		
@@ -486,6 +490,9 @@ public class OSMSplitter {
 					break;
 				case 't':
 					timing = true;
+					break;
+				case 'm':
+					metadata = true;
 					break;
 				case 'd':
 					idx = args[i].indexOf('=');
@@ -542,12 +549,19 @@ public class OSMSplitter {
 			
 			if (file.exists()) {
 				DataInputStream dis = new DataInputStream(new FileInputStream(file));
-				String line = dis.readLine();
+				String line = dis.readUTF();
 			
-				if (line != null)
-					appointmentDate = df.parse(line);
-			
+				if (line != null) {
+					try {
+						appointmentDate = df.parse(line);
+					} catch (ParseException pe) {
+						if (verbose)
+							System.out.println("Could not parse datefile.");
+					}
+				}
 				dis.close();
+			} else if (verbose) {
+				System.out.println("Datefile does not exist, defaulting to two days");
 			}
 		}
 		
@@ -557,13 +571,14 @@ public class OSMSplitter {
 		}
 		
 		// Actually run the splitter... 
-		Date latest = run(inputFile, outputBase, appointmentDate, verbose, timing);
+		Date latest = run(inputFile, outputBase, appointmentDate, 
+                          metadata, verbose, timing);
 		
 		if (verbose)
 			System.out.println("Last changes to the map had been done on " + df.format(latest));
 		if (dateFile != null) {
 			DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));
-			dos.writeChars(df.format(latest));
+			dos.writeUTF(df.format(latest));
 		}
 	}	
 }
