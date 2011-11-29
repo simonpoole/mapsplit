@@ -530,21 +530,25 @@ public class OSMSplitter {
 		DateFormat df = DateFormat.getDateTimeInstance();
 		Calendar c = Calendar.getInstance();
 		c.setTime(new Date());
-		c.add(Calendar.DAY_OF_MONTH, -3);
+		c.add(Calendar.DAY_OF_MONTH, -2);
 		appointmentDate = c.getTime();
 
 		
 		if (dateFile == null && verbose)
-				System.out.println("No datefile given. Checking for changes in the last three days.");		
+				System.out.println("No datefile given. Checking for changes in the last two days.");		
 		else {
 			
-			DataInputStream dis = new DataInputStream(new FileInputStream(dateFile));
-			String line = dis.readLine();
+			File file = new File(dateFile);
 			
-			if (line != null)
-				appointmentDate = df.parse(line);
+			if (file.exists()) {
+				DataInputStream dis = new DataInputStream(new FileInputStream(file));
+				String line = dis.readLine();
 			
-			dis.close();
+				if (line != null)
+					appointmentDate = df.parse(line);
+			
+				dis.close();
+			}
 		}
 		
 		if (verbose) {
