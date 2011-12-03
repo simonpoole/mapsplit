@@ -33,6 +33,7 @@ import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.RelationContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.WayContainer;
+import org.openstreetmap.osmosis.core.domain.v0_6.Bound;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 import org.openstreetmap.osmosis.core.domain.v0_6.Relation;
 import org.openstreetmap.osmosis.core.domain.v0_6.RelationMember;
@@ -115,6 +116,26 @@ public class OSMSplitter {
 	
 	public static int lat2tileY(double lat) { 
 		return (int) Math.floor((1.0 - Math.log(Math.tan(lat * Math.PI / 180.0) + 1.0/Math.cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * Math.pow(2.0,ZOOM));
+	}
+	
+	public static Bound getBound(int tileX, int tileY) {
+		
+		double border = 0.1;
+		
+		double l = tile2lon(tileX);
+		double r = tile2lon(tileX+1);
+		double t = tile2lat(tileY);
+		double b = tile2lat(tileY+1);
+		
+		double dx = r - l;
+		double dy = b - t;
+		
+		l -= border * dx;
+		r += border * dx;
+		t -= border * dy;
+		b += border * dy;
+		
+		return new Bound(r, l, t, b, "OSMSplitter");
 	}
 	
 	private void addNodeToMap(Node n, double lat, double lon) {
@@ -312,7 +333,9 @@ public class OSMSplitter {
 			
 			if (outFiles.get(idx) == null) {
 
-				String file = basename + (idx >> 13) + "_" + (idx & 8191) + ".pbf"; 
+				int tileX = idx >> 13;
+				int tileY = idx & 8191;
+				String file = basename + tileX + "_" + tileY + ".pbf"; 
 				//System.out.println(file);
 			
 				OsmosisSerializer serializer =
@@ -320,6 +343,11 @@ public class OSMSplitter {
 
 				serializer.setUseDense(true);
 				serializer.configOmit(!metadata);
+				
+				// write out the bound for that tile
+				Bound bound = getBound(tileX, tileY);
+				BoundContainer bc = new BoundContainer(bound);
+				serializer.process(bc);
 				
 				outFiles.put(idx, serializer);
 			}
