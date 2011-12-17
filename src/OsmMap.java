@@ -1,5 +1,5 @@
 /*
- * OSMSplitter - A simple but fast tile splitter for large OSM data
+ * Mapsplit - A simple but fast tile splitter for large OSM data
  * 
  * Written in 2011 by Peda (osm-splitter@won2.de)
  * 

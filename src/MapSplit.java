@@ -1,5 +1,5 @@
 /*
- * OSMSplitter - A simple but fast tile splitter for large OSM data
+ * Mapsplit - A simple but fast tile splitter for large OSM data
  * 
  * Written in 2011 by Peda (osm-splitter@won2.de)
  * 
@@ -47,7 +47,7 @@ import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
 
 
-public class OSMSplitter {
+public class MapSplit {
 
 	/*
 	 * the zoom-level at which we render our tiles
@@ -93,7 +93,7 @@ public class OSMSplitter {
 
 	
 	
-	public OSMSplitter(Date appointmentDate, File file) {
+	public MapSplit(Date appointmentDate, File file) {
 		this.input = file;
 		this.appointmentDate = appointmentDate;
 		nmap = new HeapMap(NODE_MAP_SIZE);
@@ -135,7 +135,7 @@ public class OSMSplitter {
 		t -= border * dy;
 		b += border * dy;
 		
-		return new Bound(r, l, t, b, "OSMSplitter");
+		return new Bound(r, l, t, b, "mapsplit");
 	}
 	
 	private void addNodeToMap(Node n, double lat, double lon) {
@@ -439,7 +439,7 @@ public class OSMSplitter {
 
 		long startup = System.currentTimeMillis();
 
-		OSMSplitter split = new OSMSplitter(appointmentDate, new File(inputFile));
+		MapSplit split = new MapSplit(appointmentDate, new File(inputFile));
 		
 		long time = System.currentTimeMillis();
 		split.setup();
@@ -474,8 +474,8 @@ public class OSMSplitter {
 	
 	
 	private static void help() {
-		System.out.println("Usage: OSMSplitter [options] <infile> <output base>");
-		System.out.println("OSMSplitter loads infile and stores any tile that got changed during the last 2 days in a tile file.\n");
+		System.out.println("Usage: mapsplit [options] <infile> <output base>");
+		System.out.println("Mapsplit loads infile and stores any tile that got changed during the last 2 days in a tile file.\n");
 		System.out.println("infile: A tile file in pbf format");
 		System.out.println("output base: this is the base name of all tiles that will be written. The filename will be preceeded with the tilenumber at Zoom 13\n");
 

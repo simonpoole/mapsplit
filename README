@@ -2,7 +2,7 @@
 General
 =======
 
-This s a small application to split a larger map file into single
+Mapsplit s a small application to split a larger map file into single
 tiles. It arose by the need of a fast way to split a OSM map file
 for rendering 3D tiles with OSM2World (www.osm2world.org). Only
 tiles that have changes in them are stored afterwards.
