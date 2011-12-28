@@ -62,5 +62,14 @@
              basedir="${build.dir}"
              manifest="manifest.mf"/>
     </target>
-	
+
+    <target name="release" depends="dist" description="Make a zip file for a release">
+      <tstamp/>
+      <zip destfile="${dist.dir}/${proj.name}-release-${DSTAMP}.zip">
+	   <zipfileset dir="${lib.dir}" prefix="${lib.dir}"/>
+	   <zipfileset dir="${dist.dir}" includes="${proj.name}.jar" prefix="${lib.dir}"/>
+	   <zipfileset dir="." includes="README"/>
+	   <zipfileset dir="." includes="mapsplit" filemode="755"/>
+      </zip>
+    </target>
 </project>
