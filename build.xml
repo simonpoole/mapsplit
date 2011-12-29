@@ -1,4 +1,4 @@
-<project name="mapsplit" default="compile" basedir=".">
+<project name="mapsplit" default="dist" basedir=".">
 	
     <!-- Name of project and version -->
     <property name="proj.name"      value="mapsplit"/>
