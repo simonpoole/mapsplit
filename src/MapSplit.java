@@ -93,12 +93,12 @@ public class MapSplit {
 
 	
 	
-	public MapSplit(Date appointmentDate, File file) {
+	public MapSplit(Date appointmentDate, int[] mapSizes, File file) {
 		this.input = file;
 		this.appointmentDate = appointmentDate;
-		nmap = new HeapMap(NODE_MAP_SIZE);
-		wmap = new HeapMap(WAY_MAP_SIZE);
-		rmap = new HeapMap(RELATION_MAP_SIZE);
+		nmap = new HeapMap(mapSizes[0]);
+		wmap = new HeapMap(mapSizes[1]);
+		rmap = new HeapMap(mapSizes[2]);
 	}
 
 	public static double tile2lon(int x) {
@@ -432,6 +432,7 @@ public class MapSplit {
 	
 	private static Date run(String inputFile, 
 			  		        String outputBase,
+			  		        int[] mapSizes,
 			 			    Date appointmentDate,
 			 			    boolean metadata,
 						    boolean verbose,
@@ -439,7 +440,7 @@ public class MapSplit {
 
 		long startup = System.currentTimeMillis();
 
-		MapSplit split = new MapSplit(appointmentDate, new File(inputFile));
+		MapSplit split = new MapSplit(appointmentDate, mapSizes, new File(inputFile));
 		
 		long time = System.currentTimeMillis();
 		split.setup();
@@ -595,7 +596,7 @@ public class MapSplit {
 		}
 		
 		// Actually run the splitter... 
-		Date latest = run(inputFile, outputBase, appointmentDate, 
+		Date latest = run(inputFile, outputBase, mapSizes, appointmentDate, 
                           metadata, verbose, timing);
 		
 		if (verbose)
