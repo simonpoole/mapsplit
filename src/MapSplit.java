@@ -475,7 +475,7 @@ public class MapSplit {
 	
 	private static void help() {
 		System.out.println("Usage: mapsplit [options] <infile> <output base>");
-		System.out.println("Mapsplit loads infile and stores any tile that got changed during the last 2 days in a tile file.\n");
+		System.out.println("Mapsplit loads infile and stores any tile or tiles that got changed since a specified date in a tile file.\n");
 		System.out.println("infile: A tile file in pbf format");
 		System.out.println("output base: this is the base name of all tiles that will be written. The filename will be preceeded with the tilenumber at Zoom 13\n");
 
@@ -563,15 +563,11 @@ public class MapSplit {
 
 		// Date-setup as fall-back option
 		DateFormat df = DateFormat.getDateTimeInstance();
-		Calendar c = Calendar.getInstance();
-		c.setTime(new Date());
-		c.add(Calendar.DAY_OF_MONTH, -2);
-		appointmentDate = c.getTime();
-
+		appointmentDate = new Date(0);
 		
 		if (dateFile == null && verbose)
-				System.out.println("No datefile given. Checking for changes in the last two days.");		
-		else {
+				System.out.println("No datefile given. Writing all available tiles.");		
+		else if (dateFile != null) {
 			
 			File file = new File(dateFile);
 			
