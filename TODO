@@ -12,7 +12,3 @@
 
 * make it possible to easily switch to other zoom-levels (harder task)
   - at least zoomlevels < 13 should be easy, add support for those
-
-* write *all* tiles for no date option (instead of the two day default)
-
-* add a format-string option for the output dir/filename

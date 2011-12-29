@@ -335,7 +335,14 @@ public class MapSplit {
 
 				int tileX = idx >> 13;
 				int tileY = idx & 8191;
-				String file = basename + tileX + "_" + tileY + ".pbf"; 
+				String file;
+				if (basename.contains("%x") && basename.contains("%y")) {
+					file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
+					if (!file.endsWith(".pbf"))
+						file = file + ".pbf";
+				} else {
+					file = basename + tileX + "_" + tileY + ".pbf";
+				}
 				//System.out.println(file);
 			
 				OsmosisSerializer serializer =
@@ -478,13 +485,13 @@ public class MapSplit {
 		System.out.println("Usage: mapsplit [options] <infile> <output base>");
 		System.out.println("Mapsplit loads infile and stores any tile or tiles that got changed since a specified date in a tile file.\n");
 		System.out.println("infile: A tile file in pbf format");
-		System.out.println("output base: this is the base name of all tiles that will be written. The filename will be preceeded with the tilenumber at Zoom 13\n");
+		System.out.println("output base: this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers at zoom 13\n");
 
 		System.out.println("Options:");
 		System.out.println("  -h, --help         this help");
 		System.out.println("  -v, --verbose      additional informational output");
 		System.out.println("  -t, --timing       output timing information");
-		System.out.println("  -m, --metadata     store metadata in tile-files (normaly not needed)");
+		System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
 		System.out.println("                     after the split the latest change in infile is going to be stored in file");
 		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
