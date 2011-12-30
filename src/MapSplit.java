@@ -22,10 +22,13 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
@@ -159,7 +162,7 @@ public class MapSplit {
 	private void addWayToMap(Way way) {
 		
 		boolean modified = way.getTimestamp().after(appointmentDate);
-		List<Long> tileList = new ArrayList<Long>();
+		Set<Long> tileList = new TreeSet<Long>();
 		
 		// mark the latest changes made to this map
 		if (way.getTimestamp().after(latestDate))
@@ -179,7 +182,7 @@ public class MapSplit {
 			
 			tileList.add(tile);
 		}
-		
+
 		// bootstrap a tilepos for the way
 		long id = way.getWayNodes().get(0).getNodeId();
 		long val = nmap.get(id);
@@ -202,7 +205,7 @@ public class MapSplit {
 	private void addRelationToMap(Relation r) {
 
 		boolean modified = r.getTimestamp().after(appointmentDate);
-		List<Long> tileList = new ArrayList<Long>();
+		Collection<Long> tileList = new TreeSet<Long>();
 		
 		if (r.getTimestamp().after(latestDate))
 			latestDate = r.getTimestamp();
@@ -251,7 +254,7 @@ public class MapSplit {
 			if (tileList.isEmpty())
 				return;
 			
-			long val = tileList.get(0);
+			long val = tileList.iterator().next();
 			int tx = rmap.tileX(val);
 			int ty = rmap.tileY(val);
 			
