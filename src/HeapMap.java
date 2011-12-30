@@ -271,18 +271,25 @@ public class HeapMap implements OsmMap {
 			int idx = (int) (value & TILE_MARKER_MASK);
 			Set<Integer> set = extendedSet[idx];
 
-			result = new ArrayList<Integer>(set);
-			result.add(tx << 13 | ty);
+			set.add(tx << 13 | ty);
+			if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+				set.add(tx+1 << 13 | ty);			
+			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+				set.add(tx << 13 | ty+1);
 
-			// TODO neighbourhood treatment...
-
-			return result;				
+			return new ArrayList<Integer>(set);
 		}
 
 		result = parseMarker(value);
 
+		// TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
+		
+		// add the tile (and possible neighbours)
 		result.add(tx << 13 | ty);
-		// TODO neighbourhood treatment...
+		if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+			result.add(tx+1 << 13 | ty);			
+		if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+			result.add(tx << 13 | ty+1);
 
 		return result;
 	}

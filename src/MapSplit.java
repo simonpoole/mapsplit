@@ -68,6 +68,9 @@ public class MapSplit {
 	private Date appointmentDate;
 	
 	private Date latestDate = new Date(0);
+
+	// the size of the border (in percent for a tile's height and width) for single tiles
+	private double border = 0.1;
 	
 	// the input file we're going to split
 	private File input;
@@ -118,9 +121,8 @@ public class MapSplit {
 		return (int) Math.floor((1.0 - Math.log(Math.tan(lat * Math.PI / 180.0) + 1.0/Math.cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * Math.pow(2.0,ZOOM));
 	}
 	
-	public static Bound getBound(int tileX, int tileY) {
-		
-		double border = 0.1;
+	/* Calculate the Bound for the given tile */
+	public Bound getBound(int tileX, int tileY) {
 		
 		double l = tile2lon(tileX);
 		double r = tile2lon(tileX+1);
@@ -138,22 +140,61 @@ public class MapSplit {
 		return new Bound(r, l, t, b, "mapsplit");
 	}
 	
+	/* calculate the lon-offset for the given border size */
+	private double deltaX(double lon) {
+		int tx = lon2tileX(lon);
+		
+		double x1 = tile2lon(tx);
+		double x2 = tile2lon(tx+1);
+		
+		return border * (x2 - x1);
+	}
+	
+	/* calculate the lat-offset for the given border size */
+	private double deltaY(double lat) {
+		int ty = lat2tileY(lat);
+		
+		double y1 = tile2lat(ty);
+		double y2 = tile2lat(ty+1);
+		
+		return border * (y2 - y1);
+	}
+
 	private void addNodeToMap(Node n, double lat, double lon) {
 		int tileX = lon2tileX(lon);
 		int tileY = lat2tileY(lat);
-
-		// TODO: check and add border
-		// TODO: mark tile border to be rerendered
+		int neighbour = OsmMap.NEIGHBOURS_NONE;
 		
-		// mark current tile to be rerendered
-		if (n.getTimestamp().after(appointmentDate))
+		// check and add border if needed
+		double dx = deltaX(lon);
+		if (lon2tileX(lon+dx) > tileX) {
+			neighbour = OsmMap.NEIGHBOURS_EAST;
+		} else if (lon2tileX(lon-dx) < tileX) {
+			tileX--;
+			neighbour = OsmMap.NEIGHBOURS_EAST;
+		}
+		double dy = deltaY(lat);
+		if (lat2tileY(lat+dy) > tileX) {
+			neighbour += OsmMap.NEIGHBOURS_SOUTH;
+		} else if (lat2tileY(lat-dy) < tileX) {
+			tileY--;
+			neighbour += OsmMap.NEIGHBOURS_SOUTH;
+		}
+		
+		// mark current tile (and neighbours) to be rerendered
+		if (n.getTimestamp().after(appointmentDate)) {
 			modifiedTiles.set(tileX << 13 | tileY);
+			if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+				modifiedTiles.set(tileX+1 << 13 | tileY);			
+			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+				modifiedTiles.set(tileX << 13 | tileY+1);
+		}
 		
 		// mark the latest changes made to this map
 		if (n.getTimestamp().after(latestDate))
 			latestDate = n.getTimestamp();
 		
-		nmap.put(n.getId(), tileX, tileY, OsmMap.NEIGHBOURS_NONE);
+		nmap.put(n.getId(), tileX, tileY, neighbour);
 	}
 	
 	private void addWayToMap(Way way) {
@@ -169,12 +210,17 @@ public class MapSplit {
 			// get tileNrs for given node
 			long tile = nmap.get(wayNode.getNodeId());
 			
-			// mark tiles as modified
+			// mark tiles (and possible neighbours) as modified
 			if (modified) {
-				// TODO: missing border treatment...
 				int tx = nmap.tileX(tile);
 				int ty = nmap.tileY(tile);
+				int neighbour = nmap.neighbour(tile);
+				
 				modifiedTiles.set(tx << 13 | ty);
+				if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+					modifiedTiles.set(tx+1 << 13 | ty);			
+				if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+					modifiedTiles.set(tx << 13 | ty+1);
 			}
 			
 			tileList.add(tile);
@@ -219,11 +265,15 @@ public class MapSplit {
 
 				int tx = nmap.tileX(tile);
 				int ty = nmap.tileY(tile);
-				// TODO: add neighbourhood handling
-
+				int neighbour = nmap.neighbour(tile);
+				
 				// mark tiles as modified
 				if (modified) {
 					modifiedTiles.set(tx << 13 | ty);
+					if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+						modifiedTiles.set(tx+1 << 13 | ty);			
+					if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+						modifiedTiles.set(tx << 13 | ty+1);
 				}
 				
 				tileList.add(tile);
