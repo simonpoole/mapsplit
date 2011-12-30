@@ -12,3 +12,7 @@
 
 * make it possible to easily switch to other zoom-levels (harder task)
   - at least zoomlevels < 13 should be easy, add support for those
+
+* Add an option to only output tiles that are within the bounds-tag or
+  within a given polygon
+
