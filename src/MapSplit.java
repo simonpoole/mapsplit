@@ -174,9 +174,9 @@ public class MapSplit {
 			neighbour = OsmMap.NEIGHBOURS_EAST;
 		}
 		double dy = deltaY(lat);
-		if (lat2tileY(lat+dy) > tileX) {
+		if (lat2tileY(lat+dy) > tileY) {
 			neighbour += OsmMap.NEIGHBOURS_SOUTH;
-		} else if (lat2tileY(lat-dy) < tileX) {
+		} else if (lat2tileY(lat-dy) < tileY) {
 			tileY--;
 			neighbour += OsmMap.NEIGHBOURS_SOUTH;
 		}

@@ -184,6 +184,8 @@ public class HeapMap implements OsmMap {
 	 */
 	public void update(long key, List<Long> tiles) {
 
+		// TODO: possibly add treatment for neighbourhood in tiles list?!
+		
 		int bucket = getBucket(key);
 		long val = values[bucket];
 		int tx = tileX(val);
