@@ -264,7 +264,8 @@ public class MapSplit {
 			
 			tileList.add(tile);
 		}
-		
+
+		// TODO check/verify if 9 tiles is ok or if there might be corner-cases with only 4 tiles
 		// with more than 9 (or 4?!) tiles in the list we might have a "hole"
 		if (tileList.size() >= 9) {
 			checkAndFill(tileList);
