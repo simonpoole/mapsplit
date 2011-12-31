@@ -146,11 +146,6 @@ public class MapSplit {
 		int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
 		int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
 		
-		System.out.println("Called checkAndFill:");
-		for (Long l : tiles)
-			System.out.print(nmap.tileX(l) + "," + nmap.tileY(l) + " ; ");
-		System.out.println();
-		
 		// determine the min/max tile nrs
 		for (long tile : tiles) {
 			int tx = nmap.tileX(tile);
@@ -162,10 +157,12 @@ public class MapSplit {
 			maxY = Math.max(maxY, ty);
 		}
 		
-		minX-=2; minY-=2; maxX+=2; maxY+=2;
+		// enlarge min/max to have a border and to cope with possible neighbourhood tiles
+		minX--; minY--; maxX += 2; maxY += 2;
 		int sizeX = maxX - minX + 1;
 		int sizeY = maxY - minY + 1;
 		
+		// fill the helperSet which marks any set tile
 		BitSet helperSet = new BitSet();
 		for (long tile : tiles) {
 			int tx = nmap.tileX(tile) - minX;
@@ -179,7 +176,7 @@ public class MapSplit {
 				helperSet.set(tx + (ty+1) * sizeX);
 		}
 		
-		// start with 1,1 and fill region
+		// start with tile 1,1 and fill region...
 		Stack<Integer> stack = new Stack<Integer>();
 		stack.push(1 + 1 * sizeX);
 	
@@ -205,7 +202,7 @@ public class MapSplit {
 			}
 		}
 		
-		// now check if there are empty tiles left (i.e. holes)
+		// now check if there are not-set bits left (i.e. holes in tiles)
 		int idx = -1;
 		while (true) {
 			idx = helperSet.nextClearBit(idx+1);
@@ -219,11 +216,11 @@ public class MapSplit {
 			if ((tx == 0) || (ty == 0))
 				continue;
 			
-			System.out.println("Found hole in tiles? " + tx + "," + ty);
+			tx += minX;
+			ty += minY;
+			
 			modifiedTiles.set(tx | ty << 13);
 		}
-		
-		System.out.println("Finished fill-algo");
 	}
 	
 	private void addNodeToMap(Node n, double lat, double lon) {
@@ -267,10 +264,11 @@ public class MapSplit {
 			
 			tileList.add(tile);
 		}
-
-		// with more than 4 tiles in the list we might have a "hole"
-		if (tileList.size() >= 4)
+		
+		// with more than 9 (or 4?!) tiles in the list we might have a "hole"
+		if (tileList.size() >= 9) {
 			checkAndFill(tileList);
+		}
 			
 		// bootstrap a tilepos for the way
 		long id = way.getWayNodes().get(0).getNodeId();
