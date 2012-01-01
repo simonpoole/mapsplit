@@ -12,6 +12,7 @@
  */
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -130,7 +131,7 @@ public class HeapMap implements OsmMap {
 		return values[bucket];
 	}
 
-	private void appendNeighbours(int index, List<Long> tiles) {
+	private void appendNeighbours(int index, Collection<Long> tiles) {
 		Set<Integer> set = extendedSet[index];
 
 		for (long l : tiles) {
@@ -141,7 +142,7 @@ public class HeapMap implements OsmMap {
 		}
 	}
 
-	private void extendToNeighbourSet(int bucket, List<Long> tiles) {
+	private void extendToNeighbourSet(int bucket, Collection<Long> tiles) {
 
 		long val = values[bucket];
 
@@ -182,7 +183,7 @@ public class HeapMap implements OsmMap {
 	/* (non-Javadoc)
 	 * @see OsmMap#update(long, java.util.List)
 	 */
-	public void update(long key, List<Long> tiles) {
+	public void update(long key, Collection<Long> tiles) {
 
 		// TODO: possibly add treatment for neighbourhood in tiles list?!
 		

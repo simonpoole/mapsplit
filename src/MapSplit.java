@@ -22,10 +22,14 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
@@ -139,6 +143,87 @@ public class MapSplit {
 		
 		return new Bound(r, l, t, b, "mapsplit");
 	}
+
+	private void checkAndFill(Collection<Long> tiles) {
+		int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+		int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+		
+		// determine the min/max tile nrs
+		for (long tile : tiles) {
+			int tx = nmap.tileX(tile);
+			int ty = nmap.tileY(tile);
+			
+			minX = Math.min(minX, tx);
+			minY = Math.min(minY, ty);
+			maxX = Math.max(maxX, tx);
+			maxY = Math.max(maxY, ty);
+		}
+		
+		// enlarge min/max to have a border and to cope with possible neighbourhood tiles
+		minX--; minY--; maxX += 2; maxY += 2;
+		int sizeX = maxX - minX + 1;
+		int sizeY = maxY - minY + 1;
+		
+		// fill the helperSet which marks any set tile
+		BitSet helperSet = new BitSet();
+		for (long tile : tiles) {
+			int tx = nmap.tileX(tile) - minX;
+			int ty = nmap.tileY(tile) - minY;
+			int neighbour = nmap.neighbour(tile);
+			
+			helperSet.set(tx + ty * sizeX);
+			if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
+				helperSet.set(tx+1 + ty * sizeX);
+			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
+				helperSet.set(tx + (ty+1) * sizeX);
+		}
+		
+		// start with tile 1,1 and fill region...
+		Stack<Integer> stack = new Stack<Integer>();
+		stack.push(1 + 1 * sizeX);
+	
+		// fill all tiles that are reachable by a 4-neighbourhood
+		while (!stack.isEmpty()) {
+			int val = stack.pop();
+			
+			if (val > sizeX * sizeY)
+				continue;
+			
+			int ty = val / sizeX;
+			int tx = val % sizeX;
+			
+			if ((tx == 0) || (ty == 0))
+				continue;
+			
+			if (!helperSet.get(val)) {
+				helperSet.set(val);
+				stack.push(tx+1 + ty * sizeX);
+				stack.push(tx-1 + ty * sizeX);
+				stack.push(tx + (ty+1) * sizeX);
+				stack.push(tx + (ty-1) * sizeX);
+			}
+		}
+		
+		// now check if there are not-set bits left (i.e. holes in tiles)
+		int idx = -1;
+		while (true) {
+			idx = helperSet.nextClearBit(idx+1);
+			
+			if (idx > sizeX * sizeY)
+				break;
+			
+			int tx = idx % sizeX;
+			int ty = idx / sizeX;
+			
+			if ((tx == 0) || (ty == 0))
+				continue;
+			
+			tx += minX;
+			ty += minY;
+			
+			modifiedTiles.set(tx | ty << 13);
+		}
+	}
 	
 	/* calculate the lon-offset for the given border size */
 	private double deltaX(double lon) {
@@ -200,7 +285,7 @@ public class MapSplit {
 	private void addWayToMap(Way way) {
 		
 		boolean modified = way.getTimestamp().after(appointmentDate);
-		List<Long> tileList = new ArrayList<Long>();
+		Set<Long> tileList = new TreeSet<Long>();
 		
 		// mark the latest changes made to this map
 		if (way.getTimestamp().after(latestDate))
@@ -225,7 +310,13 @@ public class MapSplit {
 			
 			tileList.add(tile);
 		}
-		
+
+		// TODO check/verify if 9 tiles is ok or if there might be corner-cases with only 4 tiles
+		// with more than 9 (or 4?!) tiles in the list we might have a "hole"
+		if (tileList.size() >= 9) {
+			checkAndFill(tileList);
+		}
+			
 		// bootstrap a tilepos for the way
 		long id = way.getWayNodes().get(0).getNodeId();
 		long val = nmap.get(id);
@@ -248,7 +339,7 @@ public class MapSplit {
 	private void addRelationToMap(Relation r) {
 
 		boolean modified = r.getTimestamp().after(appointmentDate);
-		List<Long> tileList = new ArrayList<Long>();
+		Collection<Long> tileList = new TreeSet<Long>();
 		
 		if (r.getTimestamp().after(latestDate))
 			latestDate = r.getTimestamp();
@@ -301,7 +392,7 @@ public class MapSplit {
 			if (tileList.isEmpty())
 				return;
 			
-			long val = tileList.get(0);
+			long val = tileList.iterator().next();
 			int tx = rmap.tileX(val);
 			int ty = rmap.tileY(val);
 			

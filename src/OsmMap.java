@@ -11,6 +11,7 @@
  * this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+import java.util.Collection;
 import java.util.List;
 
 public interface OsmMap {
@@ -53,7 +54,7 @@ public interface OsmMap {
 	 * @param key
 	 * @param tiles
 	 */
-	public abstract void update(long key, List<Long> tiles);
+	public abstract void update(long key, Collection<Long> tiles);
 
 	/**
 	 * returns a list of all tiles this key is in. This contains the
