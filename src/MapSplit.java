@@ -219,7 +219,7 @@ public class MapSplit {
 			tx += minX;
 			ty += minY;
 			
-			modifiedTiles.set(tx | ty << 13);
+			modifiedTiles.set(tx << 13 | ty);
 		}
 	}
 	
@@ -268,9 +268,9 @@ public class MapSplit {
 		if (n.getTimestamp().after(appointmentDate)) {
 			modifiedTiles.set(tileX << 13 | tileY);
 			if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
-				modifiedTiles.set(tileX+1 << 13 | tileY);			
+				modifiedTiles.set((tileX+1) << 13 | tileY);			
 			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
-				modifiedTiles.set(tileX << 13 | tileY+1);
+				modifiedTiles.set(tileX << 13 | (tileY+1));
 		}
 		
 		// mark the latest changes made to this map
@@ -301,9 +301,9 @@ public class MapSplit {
 				
 				modifiedTiles.set(tx << 13 | ty);
 				if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
-					modifiedTiles.set(tx+1 << 13 | ty);			
+					modifiedTiles.set((tx+1) << 13 | ty);			
 				if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
-					modifiedTiles.set(tx << 13 | ty+1);
+					modifiedTiles.set(tx << 13 | (ty+1));
 			}
 			
 			tileList.add(tile);
@@ -360,9 +360,9 @@ public class MapSplit {
 				if (modified) {
 					modifiedTiles.set(tx << 13 | ty);
 					if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
-						modifiedTiles.set(tx+1 << 13 | ty);			
+						modifiedTiles.set((tx+1) << 13 | ty);			
 					if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
-						modifiedTiles.set(tx << 13 | ty+1);
+						modifiedTiles.set(tx << 13 | (ty+1));
 				}
 				
 				tileList.add(tile);
