@@ -137,8 +137,13 @@ public class HeapMap implements OsmMap {
 		for (long l : tiles) {
 			int tx = tileX(l);
 			int ty = tileY(l);
+			int neighbour = neighbour(l);
 
 			set.add(tx << 13 | ty);
+			if ((neighbour & NEIGHBOURS_EAST) != 0)
+				set.add((tx+1) << 13 | ty);
+			if ((neighbour & NEIGHBOURS_SOUTH) != 0)
+				set.add(tx << 13 | (ty+1));
 		}
 	}
 
@@ -152,10 +157,10 @@ public class HeapMap implements OsmMap {
 			List<Integer> tmpList = parseMarker(val);
 			for (int i : tmpList) {
 				long tx = i >> 13;
-			long ty = i & 8191;
-			long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
+				long ty = i & 8191;
+				long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
 
-			tiles.add(temp);
+				tiles.add(temp);
 			}
 
 			// delete old marker from val
@@ -184,8 +189,6 @@ public class HeapMap implements OsmMap {
 	 * @see OsmMap#update(long, java.util.List)
 	 */
 	public void update(long key, Collection<Long> tiles) {
-
-		// TODO: possibly add treatment for neighbourhood in tiles list?!
 		
 		int bucket = getBucket(key);
 		long val = values[bucket];
@@ -201,9 +204,24 @@ public class HeapMap implements OsmMap {
 			return;
 		}
 
+		// create a expanded temp set for neighbourhood tiles 
+		Collection<Long> expanded = new TreeSet<Long>();
+		for (long tile : tiles) {
+			expanded.add(tile);
+
+			long x = tileX(tile);
+			long y = tileY(tile);
+			int neighbour = neighbour(tile);
+			
+			if ((neighbour & NEIGHBOURS_EAST) != 0)
+				expanded.add((x+1) << TILE_X_SHIFT | y << TILE_Y_SHIFT);
+			if ((neighbour & NEIGHBOURS_SOUTH) != 0)
+				expanded.add(x << TILE_X_SHIFT | (y+1) << TILE_Y_SHIFT);
+		}
+		
 		// now we use the 35 reserved bits for the tiles list..
 		boolean extend = false;
-		for (long tile : tiles) {
+		for (long tile : expanded) {
 
 			int tmpX = tileX(tile);
 			int tmpY = tileY(tile);
