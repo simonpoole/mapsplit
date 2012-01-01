@@ -158,7 +158,7 @@ public class MapSplit {
 		}
 		
 		// enlarge min/max to have a border and to cope with possible neighbourhood tiles
-		minX--; minY--; maxX += 2; maxY += 2;
+		minX -= 2; minY -= 2; maxX += 2; maxY += 2;
 		int sizeX = maxX - minX + 1;
 		int sizeY = maxY - minY + 1;
 		
@@ -184,17 +184,19 @@ public class MapSplit {
 		while (!stack.isEmpty()) {
 			int val = stack.pop();
 			
-			if (val > sizeX * sizeY)
+			boolean isSet = helperSet.get(val);
+			helperSet.set(val);
+			
+			if (val >= sizeX * sizeY)
 				continue;
 			
 			int ty = val / sizeX;
 			int tx = val % sizeX;
 			
-			if ((tx == 0) || (ty == 0))
+			if ((tx == 0) || (ty == 0) || (ty >= sizeY))
 				continue;
 			
-			if (!helperSet.get(val)) {
-				helperSet.set(val);
+			if (!isSet) {
 				stack.push(tx+1 + ty * sizeX);
 				stack.push(tx-1 + ty * sizeX);
 				stack.push(tx + (ty+1) * sizeX);
@@ -207,7 +209,7 @@ public class MapSplit {
 		while (true) {
 			idx = helperSet.nextClearBit(idx+1);
 			
-			if (idx > sizeX * sizeY)
+			if (idx >= sizeX * sizeY)
 				break;
 			
 			int tx = idx % sizeX;
@@ -219,6 +221,8 @@ public class MapSplit {
 			tx += minX;
 			ty += minY;
 			
+			// TODO: make this a bit nicer by delegating the id-generation to the map code
+			tiles.add(((long) tx) << 51 | ((long) ty) << 38);
 			modifiedTiles.set(tx << 13 | ty);
 		}
 	}
