@@ -98,8 +98,9 @@ public class MapSplit {
 
 	
 	
-	public MapSplit(Date appointmentDate, int[] mapSizes, File file) {
-		this.input = file;
+	public MapSplit(Date appointmentDate, int[] mapSizes, double border, File inputFile) {
+		this.border = border;
+		this.input = inputFile;
 		this.appointmentDate = appointmentDate;
 		nmap = new HeapMap(mapSizes[0]);
 		wmap = new HeapMap(mapSizes[1]);
@@ -583,6 +584,7 @@ public class MapSplit {
 	private static Date run(String inputFile, 
 			  		        String outputBase,
 			  		        int[] mapSizes,
+			  		        double border,
 			 			    Date appointmentDate,
 			 			    boolean metadata,
 						    boolean verbose,
@@ -590,7 +592,7 @@ public class MapSplit {
 
 		long startup = System.currentTimeMillis();
 
-		MapSplit split = new MapSplit(appointmentDate, mapSizes, new File(inputFile));
+		MapSplit split = new MapSplit(appointmentDate, mapSizes, border, new File(inputFile));
 		
 		long time = System.currentTimeMillis();
 		split.setup();
@@ -635,6 +637,7 @@ public class MapSplit {
 		System.out.println("  -v, --verbose      additional informational output");
 		System.out.println("  -t, --timing       output timing information");
 		System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
+		System.out.println("  -b, --border=val   enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
 		System.out.println("                     after the split the latest change in infile is going to be stored in file");
 		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
@@ -654,6 +657,7 @@ public class MapSplit {
 		boolean metadata = false;
 		String dateFile = null;
 		int[] mapSizes = new int[]{NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE};
+		double border = 0.0;
 		
 		// Simple argument parser..
 		for (int i = 0; i < args.length; i++) {
@@ -693,6 +697,16 @@ public class MapSplit {
 					String[] vals = tmp.split(",");
 					for (int j = 0; j < 3; j++)
 						mapSizes[j] = Integer.valueOf(vals[j]);
+					break;
+				case 'b':
+					idx = args[i].indexOf('=');
+					try {
+						border = Double.valueOf(args[i].substring(idx+1));
+						if (border < 0) border = 0;
+						if (border > 1) border = 1;
+					} catch (NumberFormatException e) {
+						System.err.println("Could not parse border parameter, falling back to defaults");
+					}
 					break;
 				}
 			} else if (mandatory == 0) {
@@ -746,7 +760,7 @@ public class MapSplit {
 		}
 		
 		// Actually run the splitter... 
-		Date latest = run(inputFile, outputBase, mapSizes, appointmentDate, 
+		Date latest = run(inputFile, outputBase, mapSizes, border, appointmentDate, 
                           metadata, verbose, timing);
 		
 		if (verbose)
