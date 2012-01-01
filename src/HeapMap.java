@@ -1,7 +1,7 @@
 /*
  * Mapsplit - A simple but fast tile splitter for large OSM data
  * 
- * Written in 2011 by Peda (osm-splitter@won2.de)
+ * Written in 2011 by Peda (osm-mapsplit@won2.de)
  * 
  * To the extent possible under law, the author(s) have dedicated all copyright and 
  * related and neighboring rights to this software to the public domain worldwide. 

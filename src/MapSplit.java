@@ -1,7 +1,7 @@
 /*
  * Mapsplit - A simple but fast tile splitter for large OSM data
  * 
- * Written in 2011 by Peda (osm-splitter@won2.de)
+ * Written in 2011 by Peda (osm-mapsplit@won2.de)
  * 
  * To the extent possible under law, the author(s) have dedicated all copyright and 
  * related and neighboring rights to this software to the public domain worldwide. 
@@ -19,9 +19,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
