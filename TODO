@@ -1,6 +1,4 @@
 
-* Store areas ways that go around a tile in the tile in the middle
-
 * Missing border treatment: Nodes, Ways and Relations near a border
   should be saved in the neighbour tiles, too.
 
