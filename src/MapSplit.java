@@ -11,14 +11,17 @@
  * this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.DateFormat;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Date;
@@ -471,6 +474,125 @@ public class MapSplit {
 	}
 	
 	
+	private boolean isInside(double x, double y, double[] polygon) {
+		
+		boolean in = false;
+		int lines = polygon.length/2;
+		
+		for (int i = 0, j = lines-1; i < lines; j = i++) {
+			
+			if (((polygon[2*i+1]>y) != (polygon[2*j+1]>y)) &&
+				(x < (polygon[2*j]-polygon[2*i]) * (y-polygon[2*i+1]) / (polygon[2*j+1]-polygon[2*i+1]) + polygon[2*i]))
+				in = !in;
+		}
+		
+		return in;
+	}
+
+	private boolean isInside(int tx, int ty, double[] polygon) {
+
+		for (int u = 0; u < 2; u++) {
+			for (int v = 0; v < 2; v++) {
+				double x = tile2lon(tx+u);
+				double y = tile2lat(ty+v);
+				if (isInside(x, y, polygon))
+					return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isInside(int tx, int ty, List<double[]> inside, List<double[]> outside) {
+		
+		boolean in = false;
+		for (double[] polygon : inside) {
+			in |= isInside(tx, ty, polygon);
+			if (in) break;
+		}
+		
+		if (!in)
+			return false;
+
+		for (double[] polygon : outside) {
+			if (isInside(tx, ty, polygon))
+				return false;
+		}
+		
+		return true;
+	}
+	
+	public void clipPoly(String polygonFile) throws IOException {
+		
+		List<double[]> inside = new ArrayList<double[]>();
+		List<double[]> outside = new ArrayList<double[]>();
+		
+		BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(polygonFile)));
+		/*String name = */ br.readLine(); // unused..
+		
+		String poly = br.readLine();
+		while (!"END".equals(poly)) {
+
+			int pos = 0;
+			int size = 128;
+			double[] data = new double[2*size];
+			
+			String coords = br.readLine();
+			while (!"END".equals(coords)) {
+				
+				coords = coords.trim();
+				int idx = coords.indexOf(" ");
+				double lon = Double.parseDouble(coords.substring(0, idx));
+				double lat = Double.parseDouble(coords.substring(idx+1));
+				
+				// check if there's enough space to store
+				if (pos >= size) {
+					double[] tmp = new double[4*size];
+					System.arraycopy(data, 0, tmp, 0, 2*size);
+					size *= 2;
+					data = tmp;
+				}
+				
+				// store data
+				data[2*pos] = lon;
+				data[2*pos+1] = lat;
+				pos++;
+				
+				coords = br.readLine();
+			}
+
+			if (pos != size) {
+				double[] tmp = new double[2*pos];
+				System.arraycopy(data, 0, tmp, 0, 2*pos);
+				data = tmp;
+			}
+
+			if (poly.startsWith("!")) {
+				outside.add(data);
+			} else {
+				inside.add(data);
+			}
+			
+			// read next polygon, if there's any
+			poly = br.readLine();
+		}
+		
+		// now walk modifiedTiles and clear bits that are not inside polygon
+		int idx = 0;
+		while (true) {
+			idx = modifiedTiles.nextSetBit(idx+1);
+			if (idx == -1)
+				break;
+			
+			int tx = idx >> 13;
+			int ty = idx & 8191;
+			
+			boolean in = isInside(tx, ty, inside, outside);
+			
+			if (!in)
+				modifiedTiles.clear(idx);
+		}
+	}
+	
 	public void store(String basename, boolean metadata) throws IOException {
 		
 		complete = false;
@@ -591,6 +713,7 @@ public class MapSplit {
 	
 	private static Date run(String inputFile, 
 			  		        String outputBase,
+			  		        String polygonFile,
 			  		        int[] mapSizes,
 			  		        double border,
 			 			    Date appointmentDate,
@@ -605,9 +728,15 @@ public class MapSplit {
 		long time = System.currentTimeMillis();
 		split.setup();
 		time = System.currentTimeMillis() - time;
+				
+		if (polygonFile != null) {
+			if (verbose)
+				System.out.println("Clip tiles with polygon given by \"" + polygonFile + "\"");
+			split.clipPoly(polygonFile);
+		}
 		
 		int modified = split.modifiedTiles.cardinality();
-		
+
 		if (timing)
 			System.out.println("Initial reading and datastructure setup took " + time + "ms");
 		if (verbose)
@@ -646,6 +775,7 @@ public class MapSplit {
 		System.out.println("  -t, --timing       output timing information");
 		System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
 		System.out.println("  -b, --border=val   enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.");
+		System.out.println("  -p, --polygon=file only save tiles that intersect or lie within the given polygon file");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
 		System.out.println("                     after the split the latest change in infile is going to be stored in file");
 		System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
@@ -660,6 +790,7 @@ public class MapSplit {
 		Date appointmentDate;
 		String inputFile = null;
 		String outputBase = null;
+		String polygonFile = null;
 		boolean verbose = false;
 		boolean timing = false;
 		boolean metadata = false;
@@ -693,6 +824,12 @@ public class MapSplit {
 						System.exit(1);
 					}
 					dateFile = args[i].substring(idx+1);
+					break;
+				case 'p':
+					idx = args[i].indexOf('=');
+					if (idx != -1) {
+						polygonFile = args[i].substring(idx+1);
+					}
 					break;
 				case 's':
 					idx = args[i].indexOf('=');
@@ -768,7 +905,7 @@ public class MapSplit {
 		}
 		
 		// Actually run the splitter... 
-		Date latest = run(inputFile, outputBase, mapSizes, border, appointmentDate, 
+		Date latest = run(inputFile, outputBase, polygonFile, mapSizes, border, appointmentDate, 
                           metadata, verbose, timing);
 		
 		if (verbose)
