@@ -308,9 +308,9 @@ public class HeapMap implements OsmMap {
 		// add the tile (and possible neighbours)
 		result.add(tx << 13 | ty);
 		if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
-			result.add(tx+1 << 13 | ty);			
+			result.add((tx+1) << 13 | ty);			
 		if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
-			result.add(tx << 13 | ty+1);
+			result.add(tx << 13 | (ty+1));
 
 		return result;
 	}

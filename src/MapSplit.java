@@ -276,6 +276,8 @@ public class MapSplit {
 				modifiedTiles.set((tileX+1) << 13 | tileY);			
 			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
 				modifiedTiles.set(tileX << 13 | (tileY+1));
+			if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST)
+				modifiedTiles.set((tileX+1) << 13 | (tileY+1));
 		}
 		
 		// mark the latest changes made to this map
@@ -309,6 +311,8 @@ public class MapSplit {
 					modifiedTiles.set((tx+1) << 13 | ty);			
 				if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
 					modifiedTiles.set(tx << 13 | (ty+1));
+				if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST)
+					modifiedTiles.set((tx+1) << 13 | (ty+1));
 			}
 			
 			tileList.add(tile);
@@ -341,6 +345,8 @@ public class MapSplit {
 	
 	private void addRelationToMap(Relation r) {
 
+		// TODO: rework this code: there should not be returns in the for-loop, realtion should be updated for _all_ node's tiles
+		
 		boolean modified = r.getTimestamp().after(appointmentDate);
 		Collection<Long> tileList = new TreeSet<Long>();
 		
@@ -368,6 +374,8 @@ public class MapSplit {
 						modifiedTiles.set((tx+1) << 13 | ty);			
 					if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
 						modifiedTiles.set(tx << 13 | (ty+1));
+					if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST)
+						modifiedTiles.set((tx+1) << 13 | (ty+1));
 				}
 				
 				tileList.add(tile);
