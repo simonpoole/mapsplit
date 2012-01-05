@@ -895,7 +895,7 @@ public class MapSplit {
 				}
 				dis.close();
 			} else if (verbose) {
-				System.out.println("Datefile does not exist, defaulting to two days");
+				System.out.println("Datefile does not exist, writing all tiles");
 			}
 		}
 		
