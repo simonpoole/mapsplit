@@ -178,6 +178,8 @@ public class MapSplit {
 				helperSet.set(tx+1 + ty * sizeX);
 			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
 				helperSet.set(tx + (ty+1) * sizeX);
+			if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST)
+				helperSet.set(tx+1 + (ty+1) * sizeX);
 		}
 		
 		// start with tile 1,1 and fill region...
@@ -597,6 +599,8 @@ public class MapSplit {
 		
 		complete = false;
 		outFiles = new HashMap<Integer, OsmosisSerializer>();
+		
+		// TODO: add a multi-pass solution, so we don't need thousands of open file descriptors
 		
 		// Setup out-files...
 		int idx = 0; 

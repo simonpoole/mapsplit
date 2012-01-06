@@ -144,6 +144,8 @@ public class HeapMap implements OsmMap {
 				set.add((tx+1) << 13 | ty);
 			if ((neighbour & NEIGHBOURS_SOUTH) != 0)
 				set.add(tx << 13 | (ty+1));
+			if (neighbour == NEIGHBOURS_SOUTH_EAST)
+				set.add((tx+1) << 13 | (ty+1));
 		}
 	}
 
@@ -217,6 +219,8 @@ public class HeapMap implements OsmMap {
 				expanded.add((x+1) << TILE_X_SHIFT | y << TILE_Y_SHIFT);
 			if ((neighbour & NEIGHBOURS_SOUTH) != 0)
 				expanded.add(x << TILE_X_SHIFT | (y+1) << TILE_Y_SHIFT);
+			if (neighbour == NEIGHBOURS_SOUTH_EAST)
+				expanded.add((x+1) << TILE_X_SHIFT | (y+1) << TILE_Y_SHIFT);
 		}
 		
 		// now we use the 35 reserved bits for the tiles list..
