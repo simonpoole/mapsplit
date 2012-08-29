@@ -81,6 +81,9 @@ public class MapSplit {
 	// the input file we're going to split
 	private File input;
 	
+	// maximum number of files open at the same time
+	private int maxFiles;
+	
 	// internal store to check if reading the file worked
 	private boolean complete = false;
 
@@ -102,10 +105,11 @@ public class MapSplit {
 
 	
 	
-	public MapSplit(Date appointmentDate, int[] mapSizes, double border, File inputFile) {
+	public MapSplit(Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile) {
 		this.border = border;
 		this.input = inputFile;
 		this.appointmentDate = appointmentDate;
+		this.maxFiles = maxFiles;
 		nmap = new HeapMap(mapSizes[0]);
 		wmap = new HeapMap(mapSizes[1]);
 		rmap = new HeapMap(mapSizes[2]);
@@ -614,115 +618,124 @@ public class MapSplit {
 	}
 	
 	public void store(String basename, boolean metadata) throws IOException {
-		
-		complete = false;
-		outFiles = new HashMap<Integer, OsmosisSerializer>();
-		
-		// TODO: add a multi-pass solution, so we don't need thousands of open file descriptors
-		
-		// Setup out-files...
-		int idx = 0; 
+
+		// We might call this code several times if we have more tiles
+		// to store than open files allowed
 		while (true) {
-			idx = modifiedTiles.nextSetBit(idx+1);
-			if (idx == -1)
-				break;
-			
-			if (outFiles.get(idx) == null) {
 
-				int tileX = idx >> 13;
-				int tileY = idx & 8191;
-				String file;
-				if (basename.contains("%x") && basename.contains("%y")) {
-					file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
-					if (!file.endsWith(".pbf"))
-						file = file + ".pbf";
-				} else {
-					file = basename + tileX + "_" + tileY + ".pbf";
-				}
-				//System.out.println(file);
-			
-				OsmosisSerializer serializer =
-					new OsmosisSerializer(new BlockOutputStream(new FileOutputStream(file)));
-
-				serializer.setUseDense(true);
-				serializer.configOmit(!metadata);
-				
-				// write out the bound for that tile
-				Bound bound = getBound(tileX, tileY);
-				BoundContainer bc = new BoundContainer(bound);
-				serializer.process(bc);
-				
-				outFiles.put(idx, serializer);
-			}
-		}
-	
-		// Now start writing output...
+			complete = false;
+			outFiles = new HashMap<Integer, OsmosisSerializer>();
 		
-		RunnableSource reader =	new OsmosisReader(new FileInputStream(input));
-		reader.setSink(new Sink() {
-			@Override
-			public void release() { 
-				// nothing to be done 
-			}			
-			@Override
-			public void complete() { complete = true; }
-			@Override
-			public void process(EntityContainer ec) {
-				long id = ec.getEntity().getId();
+			// Setup out-files...
+			int count = 0, idx = 0; 
+			while (true) {
+				idx = modifiedTiles.nextSetBit(idx+1);
+				if (idx == -1)
+					break;
+			
+				modifiedTiles.set(idx, false);
 				
-				List<Integer> tiles;
+				if (outFiles.get(idx) == null) {
+
+					int tileX = idx >> 13;
+					int tileY = idx & 8191;
+					String file;
+					if (basename.contains("%x") && basename.contains("%y")) {
+						file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
+						if (!file.endsWith(".pbf"))
+							file = file + ".pbf";
+					} else {
+						file = basename + tileX + "_" + tileY + ".pbf";
+					}
+
+					OsmosisSerializer serializer =
+						new OsmosisSerializer(new BlockOutputStream(new FileOutputStream(file)));
+
+					serializer.setUseDense(true);
+					serializer.configOmit(!metadata);
 				
-				if (ec instanceof NodeContainer)
-					tiles = nmap.getAllTiles(id);
-				else if (ec instanceof WayContainer)
-					tiles = wmap.getAllTiles(id);
-				else if (ec instanceof RelationContainer) {
-					tiles = rmap.getAllTiles(id);
-				} else if (ec instanceof BoundContainer) {
-					// nothing todo, we ignore bound tags
-					return;
-				} else {
-					System.err.println("Unknown Element while reading");
-					System.err.println(ec.toString());
-					System.err.println(ec.getEntity().toString());
-					return;
+					// write out the bound for that tile
+					Bound bound = getBound(tileX, tileY);
+					BoundContainer bc = new BoundContainer(bound);
+					serializer.process(bc);
+				
+					outFiles.put(idx, serializer);
 				}
 				
-				if (tiles == null) {
-					// No tile where we could store the given entity into
-					// This probably is a degenerated relation ;)
-					return;
-				}
+				if (++count >= maxFiles)
+					break;
+			}
+	
+			// Now start writing output...
+		
+			RunnableSource reader =	new OsmosisReader(new FileInputStream(input));
+			reader.setSink(new Sink() {
+				@Override
+				public void release() { 
+					// nothing to be done 
+				}			
+				@Override
+				public void complete() { complete = true; }
+				@Override
+				public void process(EntityContainer ec) {
+					long id = ec.getEntity().getId();
+					
+					List<Integer> tiles;
+					
+					if (ec instanceof NodeContainer)
+						tiles = nmap.getAllTiles(id);
+					else if (ec instanceof WayContainer)
+						tiles = wmap.getAllTiles(id);
+					else if (ec instanceof RelationContainer) {
+						tiles = rmap.getAllTiles(id);
+					} else if (ec instanceof BoundContainer) {
+						// nothing todo, we ignore bound tags
+						return;
+					} else {
+						System.err.println("Unknown Element while reading");
+						System.err.println(ec.toString());
+						System.err.println(ec.getEntity().toString());
+						return;
+					}
 				
-				for (int i : tiles) {
-					if (modifiedTiles.get(i)) {
-						outFiles.get(i).process(ec);
+					if (tiles == null) {
+						// No tile where we could store the given entity into
+						// This probably is a degenerated relation ;)
+						return;
+					}
+				
+					for (int i : tiles) {
+						if (modifiedTiles.get(i)) {
+							outFiles.get(i).process(ec);
+						}
 					}
 				}
+			});
+		
+			Thread readerThread = new Thread(reader);
+			readerThread.start();
+			while (readerThread.isAlive()) {
+				try {
+					readerThread.join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
-		});
 		
-		Thread readerThread = new Thread(reader);
-		readerThread.start();
-		while (readerThread.isAlive()) {
-			try {
-				readerThread.join();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			if (!complete)
+				throw new IOException("Could not fully read file in second run");
+		
+			// Finish and close files...
+			for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
+				OsmosisSerializer ser = entry.getValue();
+				
+				ser.complete();
+				ser.flush();
+				ser.close();
 			}
-		}
-		
-		if (!complete)
-			throw new IOException("Could not fully read file in second run");
-		
-		
-		// Finish and close files...
-		for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
-			OsmosisSerializer ser = entry.getValue();
-	
-			ser.complete();
-			ser.flush();
-			ser.close();
+			
+			if (modifiedTiles.isEmpty())
+				break;
 		}
 	}
 	
@@ -737,6 +750,7 @@ public class MapSplit {
 			  		        String outputBase,
 			  		        String polygonFile,
 			  		        int[] mapSizes,
+			  		        int maxFiles,
 			  		        double border,
 			 			    Date appointmentDate,
 			 			    boolean metadata,
@@ -745,7 +759,7 @@ public class MapSplit {
 
 		long startup = System.currentTimeMillis();
 
-		MapSplit split = new MapSplit(appointmentDate, mapSizes, border, new File(inputFile));
+		MapSplit split = new MapSplit(appointmentDate, mapSizes, maxFiles, border, new File(inputFile));
 		
 		long time = System.currentTimeMillis();
 		split.setup();
@@ -796,6 +810,7 @@ public class MapSplit {
 		System.out.println("  -v, --verbose      additional informational output");
 		System.out.println("  -t, --timing       output timing information");
 		System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
+		System.out.println("  -f, --fd-max=val   maximum number of open files at a time");
 		System.out.println("  -b, --border=val   enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.");
 		System.out.println("  -p, --polygon=file only save tiles that intersect or lie within the given polygon file");
 		System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
@@ -818,6 +833,7 @@ public class MapSplit {
 		boolean metadata = false;
 		String dateFile = null;
 		int[] mapSizes = new int[]{NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE};
+		int maxFiles = -1;
 		double border = 0.0;
 		
 		// Simple argument parser..
@@ -837,6 +853,16 @@ public class MapSplit {
 					break;
 				case 'm':
 					metadata = true;
+					break;
+				case 'f':
+					idx = args[i].indexOf('=');
+					if (idx == -1) {
+						System.out.println("Supply a number for max fds");
+						help();
+						System.exit(1);
+					}
+					String tmp = args[i].substring(idx+1);
+					maxFiles = Integer.valueOf(tmp);
 					break;
 				case 'd':
 					idx = args[i].indexOf('=');
@@ -860,7 +886,7 @@ public class MapSplit {
 						help();
 						System.exit(2);
 					}
-					String tmp = args[i].substring(idx+1);
+					tmp = args[i].substring(idx+1);
 					String[] vals = tmp.split(",");
 					for (int j = 0; j < 3; j++)
 						mapSizes[j] = Integer.valueOf(vals[j]);
@@ -927,7 +953,7 @@ public class MapSplit {
 		}
 		
 		// Actually run the splitter... 
-		Date latest = run(inputFile, outputBase, polygonFile, mapSizes, border, appointmentDate, 
+		Date latest = run(inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, 
                           metadata, verbose, timing);
 		
 		if (verbose)
