@@ -42,6 +42,7 @@ import org.openstreetmap.osmosis.core.domain.v0_6.Bound;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 import org.openstreetmap.osmosis.core.domain.v0_6.Relation;
 import org.openstreetmap.osmosis.core.domain.v0_6.RelationMember;
+import org.openstreetmap.osmosis.core.domain.v0_6.Tag;
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
@@ -349,6 +350,20 @@ public class MapSplit {
 	}
 	
 	private void addRelationToMap(Relation r) {
+		
+		boolean multipolygon = false;
+		boolean boundary = false;
+		
+		for (Tag tag : r.getTags()) {	
+			if (tag.getKey().equals("type") && tag.getValue().equals("multipolygon"))
+				multipolygon = true;
+			if (tag.getKey().equals("boundary"))
+				boundary = true;
+		}
+		
+		// We only treat multipolygons right now
+		if (!multipolygon || boundary)
+			return;
 		
 		boolean modified = r.getTimestamp().after(appointmentDate);
 		Collection<Long> tileList = new TreeSet<Long>();
