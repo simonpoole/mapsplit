@@ -349,8 +349,6 @@ public class MapSplit {
 	}
 	
 	private void addRelationToMap(Relation r) {
-
-		// TODO: rework this code: there should not be returns in the for-loop, realtion should be updated for _all_ node's tiles
 		
 		boolean modified = r.getTimestamp().after(appointmentDate);
 		Collection<Long> tileList = new TreeSet<Long>();
@@ -365,15 +363,17 @@ public class MapSplit {
 				long tile = nmap.get(m.getMemberId());
 				
 				// The referenced node is not in our data set
-				if (tile == 0)
-					return;
-
-				int tx = nmap.tileX(tile);
-				int ty = nmap.tileY(tile);
-				int neighbour = nmap.neighbour(tile);
+				if (tile == 0) {
+					System.out.println("Non-complete Relation " + r.getId() + " (missing a node)");
+					continue;
+				}
 				
 				// mark tiles as modified
 				if (modified) {
+					int tx = nmap.tileX(tile);
+					int ty = nmap.tileY(tile);
+					int neighbour = nmap.neighbour(tile);
+
 					modifiedTiles.set(tx << 13 | ty);
 					if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
 						modifiedTiles.set((tx+1) << 13 | ty);			
@@ -390,8 +390,10 @@ public class MapSplit {
 				List<Integer> list = wmap.getAllTiles(m.getMemberId());
 				
 				// The referenced way is not in our data set
-				if (list == null)
+				if (list == null) {
+					System.out.println("Non-complete Relation " + r.getId() + " (missing a way)");
 					return;
+				}
 				
 				if (modified) {
 					for (Integer i : list)
@@ -402,26 +404,27 @@ public class MapSplit {
 				for (int i : list)
 					tileList.add(((long) i) << 38);
 				break;
+				
+			case Relation:
+			default:
+				// Not handled
 			}
-
-			// Just in case, this can happen due to silly input data :'(
-			if (tileList.isEmpty())
-				return;
-			
-			long val = tileList.iterator().next();
-			int tx = rmap.tileX(val);
-			int ty = rmap.tileY(val);
-			
-			// put relation into map with a "random" base tile
-			rmap.put(r.getId(), tx, ty, OsmMap.NEIGHBOURS_NONE);
-			// update map so that the relation knows in which tiles it is needed
-			rmap.update(r.getId(), tileList);
-			
-			// TODO I'm not sure yet if all nodes and all ways belonging to the
-			//      given relation need to be in every tile that this relation
-			//      is in. I.e. do we need a "complete-relation" setting as we
-			//      do it for "complete-ways"??			
 		}
+		
+		// Just in case, this can happen due to silly input data :'(
+		if (tileList.isEmpty()) {
+			System.out.println("Ignoring empty relation");
+			return;
+		}
+			
+		long val = tileList.iterator().next();
+		int tx = rmap.tileX(val);
+		int ty = rmap.tileY(val);
+			
+		// put relation into map with a "random" base tile
+		rmap.put(r.getId(), tx, ty, OsmMap.NEIGHBOURS_NONE);
+		// update map so that the relation knows in which tiles it is needed
+		rmap.update(r.getId(), tileList);
 	}
 	
 	public void setup() throws IOException {
