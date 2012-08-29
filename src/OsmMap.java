@@ -74,6 +74,16 @@ public interface OsmMap {
 	public abstract double getLoad();
 
 	/**
+	 * for debugging this method gives the ratio of misses to hits. For 
+	 * open addressing multiple misses may occour. The ratio gives 
+	 * feedback about the goodness of the data/hash function. A value of
+	 * 0 means perfect hashing, a value larger 2 means a high load or a
+	 * bad hash function.
+	 * @return the hit miss ratio
+	 */
+	public abstract double getMissHitRatio();
+	
+	/**
 	 * return the tilenumber in west-east-direction encoded in the given value
 	 * @param value the value stored in the Map
 	 * @return the tilenumber in west-east-direction

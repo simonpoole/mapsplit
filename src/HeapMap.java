@@ -47,6 +47,9 @@ public class HeapMap implements OsmMap {
 	private int extendedBuckets = 0;
 	private Set<Integer>[] extendedSet = new Set[1000];
 
+	private long hits = 0;
+	private long misses = 0;
+	
 
 	public HeapMap(int size) {
 		this.size = size;
@@ -65,6 +68,10 @@ public class HeapMap implements OsmMap {
 	public int neighbour(long value) {
 		return (int) ((value & NEIGHBOUR_MASK) >> NEIGHBOUR_SHIFT);
 	}
+
+	private static long KEY(long key) {
+		return key;
+	}
 	
 	/* (non-Javadoc)
 	 * @see OsmMap#put(long, int, int, int)
@@ -72,14 +79,14 @@ public class HeapMap implements OsmMap {
 	public void put(long key, int tileX, int tileY, int neighbours) {
 		int count = 0;
 
-		int bucket = (int) (key % size);
+		int bucket = (int) (KEY(key) % size);
 		long value = ((long)tileX) << TILE_X_SHIFT | 
 					 ((long)tileY) << TILE_Y_SHIFT |
 					 ((long) neighbours) << NEIGHBOUR_SHIFT;
 
 		while (true) {
 			if (values[bucket] == 0) {
-				keys[bucket] = key;
+				keys[bucket] = KEY(key);
 				values[bucket] = value;
 				return;
 			} 
@@ -97,11 +104,12 @@ public class HeapMap implements OsmMap {
 
 	private int getBucket(long key) {
 		int count = 0;
-		int bucket = (int) (key % size);
+		int bucket = (int) (KEY(key) % size);
 
 		while (true) {
 			if (values[bucket] != 0l) {
-				if ((keys[bucket] & KEY_MASK) == key) {
+				if ((keys[bucket] & KEY_MASK) == KEY(key)) {
+					hits++;
 					return bucket;
 				}
 			} else {
@@ -114,6 +122,7 @@ public class HeapMap implements OsmMap {
 					return -1;
 			}
 			
+			misses++;
 			bucket++; count++;
 			bucket = bucket % size;
 		}
@@ -328,5 +337,13 @@ public class HeapMap implements OsmMap {
 			if (values[i] != 0) count++;
 		}
 		return ((double) count) / ((double) size);
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * @see OsmMap#getMissHitRatio()
+	 */
+	public double getMissHitRatio() {
+		return ((double) misses) / ((double) hits);
 	}
 }
