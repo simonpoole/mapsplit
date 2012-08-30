@@ -617,8 +617,10 @@ public class MapSplit {
 		}
 	}
 	
-	public void store(String basename, boolean metadata) throws IOException {
+	public void store(String basename, boolean metadata, boolean verbose) throws IOException {
 
+		int idx = 0;
+		
 		// We might call this code several times if we have more tiles
 		// to store than open files allowed
 		while (true) {
@@ -627,13 +629,12 @@ public class MapSplit {
 			outFiles = new HashMap<Integer, OsmosisSerializer>();
 		
 			// Setup out-files...
-			int count = 0, idx = 0; 
+			int count = 0; 
 			while (true) {
 				idx = modifiedTiles.nextSetBit(idx+1);
-				if (idx == -1)
+				if (idx == -1) {
 					break;
-			
-				modifiedTiles.set(idx, false);
+				}
 				
 				if (outFiles.get(idx) == null) {
 
@@ -662,7 +663,7 @@ public class MapSplit {
 					outFiles.put(idx, serializer);
 				}
 				
-				if (++count >= maxFiles)
+				if ((maxFiles != -1) && (++count >= maxFiles))
 					break;
 			}
 	
@@ -706,7 +707,9 @@ public class MapSplit {
 				
 					for (int i : tiles) {
 						if (modifiedTiles.get(i)) {
-							outFiles.get(i).process(ec);
+							OsmosisSerializer ser = outFiles.get(i);
+							if (ser != null)
+								ser.process(ec);
 						}
 					}
 				}
@@ -723,7 +726,7 @@ public class MapSplit {
 			}
 		
 			if (!complete)
-				throw new IOException("Could not fully read file in second run");
+				throw new IOException("Could not fully read file in storing run");
 		
 			// Finish and close files...
 			for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
@@ -734,8 +737,11 @@ public class MapSplit {
 				ser.close();
 			}
 			
-			if (modifiedTiles.isEmpty())
+			if (idx == -1)
 				break;
+			
+			if (verbose)
+				System.out.println("Wrote " + maxFiles + " tiles, continuing with next block of tiles");
 		}
 	}
 	
@@ -764,7 +770,11 @@ public class MapSplit {
 		long time = System.currentTimeMillis();
 		split.setup();
 		time = System.currentTimeMillis() - time;
-				
+		
+		double nratio = split.nmap.getMissHitRatio();
+		double wratio = split.nmap.getMissHitRatio();
+		double rratio = split.nmap.getMissHitRatio();
+			
 		if (polygonFile != null) {
 			if (verbose)
 				System.out.println("Clip tiles with polygon given by \"" + polygonFile + "\"");
@@ -779,7 +789,7 @@ public class MapSplit {
 			System.out.println("We have " + modified + " modified tiles to store.");
 		
 		time = System.currentTimeMillis();
-		split.store(outputBase, metadata);
+		split.store(outputBase, metadata, verbose);
 		time = System.currentTimeMillis() - time;
 		if (timing) {
 			System.out.println("Saving " + modified + " tiles took " + time + "ms");
@@ -789,10 +799,14 @@ public class MapSplit {
 		}
 		
 		if (verbose) {
-			System.out.println("\nHashmaps load:");
+			System.out.println("\nHashmap's load:");
 			System.out.println("Nodes    : " + split.nmap.getLoad());
 			System.out.println("Ways     : " + split.wmap.getLoad());
 			System.out.println("Relations: " + split.rmap.getLoad());
+			System.out.println("\nHashmap's MissHitRatio:");
+			System.out.printf("Nodes    : %10.6f", nratio);
+			System.out.printf("Ways     : %10.6f", wratio);
+			System.out.printf("Relations: %10.6f", rratio);
 		}
 		
 		return split.latestDate;
