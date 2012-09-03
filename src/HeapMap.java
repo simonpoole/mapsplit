@@ -45,8 +45,8 @@ public class HeapMap implements OsmMap {
 	private long[] values;
 
 	private int extendedBuckets = 0;
-	private Set<Integer>[] extendedSet = new Set[1000];
-
+	private int[][] extendedSet = new int[1000][];
+	
 	private long hits = 0;
 	private long misses = 0;
 	
@@ -140,22 +140,54 @@ public class HeapMap implements OsmMap {
 		return values[bucket];
 	}
 
+	private int[] merge(int[] old, int[] add, int len) {
+		int curLen = old.length;
+		int[] tmp = new int[curLen + len];
+		System.arraycopy(old, 0, tmp, 0, old.length);
+		
+		for (int i = 0; i < len; i++) {
+			int toAdd = add[i];
+			boolean contained = false;
+			
+			for (int j = 0; j < curLen; j++) {
+				if (toAdd == tmp[j]) {
+					contained = true;
+					break;
+				}
+			}
+			
+			if (!contained) {
+				tmp[curLen++] = toAdd;
+			}
+		}
+		
+		int[] result = new int[curLen];
+		System.arraycopy(tmp, 0, result, 0, curLen);
+		
+		return result;
+	}
+	
 	private void appendNeighbours(int index, Collection<Long> tiles) {
-		Set<Integer> set = extendedSet[index];
-
+		int[] old = extendedSet[index];
+		int[] set = new int[4*tiles.size()];
+		int pos = 0;
+		
 		for (long l : tiles) {
 			int tx = tileX(l);
 			int ty = tileY(l);
 			int neighbour = neighbour(l);
 
-			set.add(tx << 13 | ty);
+			set[pos++] = tx << 13 | ty;
 			if ((neighbour & NEIGHBOURS_EAST) != 0)
-				set.add((tx+1) << 13 | ty);
+				set[pos++] = (tx+1) << 13 | ty;
 			if ((neighbour & NEIGHBOURS_SOUTH) != 0)
-				set.add(tx << 13 | (ty+1));
+				set[pos++] = tx << 13 | (ty+1);
 			if (neighbour == NEIGHBOURS_SOUTH_EAST)
-				set.add((tx+1) << 13 | (ty+1));
+				set[pos++] = (tx+1) << 13 | (ty+1);
 		}
+		
+		int[] result = merge(old, set, pos);
+		extendedSet[index] = result;
 	}
 
 	private void extendToNeighbourSet(int bucket, Collection<Long> tiles) {
@@ -182,7 +214,7 @@ public class HeapMap implements OsmMap {
 
 		// if we don't have enough sets, increase the array...
 		if (cur >= extendedSet.length) {
-			Set<Integer>[] tmp = new Set[2*extendedSet.length];
+			int[][] tmp = new int[2*extendedSet.length][];
 			System.arraycopy(extendedSet, 0, tmp, 0, extendedSet.length);
 			extendedSet = tmp;
 		}
@@ -191,7 +223,7 @@ public class HeapMap implements OsmMap {
 		val |= (long) cur;
 		values[bucket] = val;
 
-		extendedSet[cur] = new TreeSet<Integer>();
+		extendedSet[cur] = new int[0];
 
 		appendNeighbours(cur, tiles);
 	}
@@ -285,6 +317,15 @@ public class HeapMap implements OsmMap {
 		return result;
 	}
 
+	private List<Integer> asList(int[] set) {
+		List<Integer> result = new ArrayList<Integer>();
+		
+		for (int i = 0; i < set.length; i++)
+			result.add(set[i]);
+		
+		return result;
+	}
+	
 	/* (non-Javadoc)
 	 * @see OsmMap#getAllTiles(long)
 	 */
@@ -303,15 +344,17 @@ public class HeapMap implements OsmMap {
 
 		if ((value & TILE_EXT_MASK) != 0) {
 			int idx = (int) (value & TILE_MARKER_MASK);
-			Set<Integer> set = extendedSet[idx];
+			return asList(extendedSet[idx]);
 
+			/* TODO: testen, dieser Teil sollte nicht noetig sein, da schon im extendedSet!
 			set.add(tx << 13 | ty);
 			if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0)
 				set.add(tx+1 << 13 | ty);			
 			if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0)
 				set.add(tx << 13 | ty+1);
 
-			return new ArrayList<Integer>(set);
+			return set;
+			*/
 		}
 
 		result = parseMarker(value);
