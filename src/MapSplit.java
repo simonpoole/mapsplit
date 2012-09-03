@@ -444,6 +444,20 @@ public class MapSplit {
 		rmap.put(r.getId(), tx, ty, OsmMap.NEIGHBOURS_NONE);
 		// update map so that the relation knows in which tiles it is needed
 		rmap.update(r.getId(), tileList);
+		
+		for (RelationMember m : r.getMembers()) {
+			switch (m.getMemberType()) {
+			case Node:
+				nmap.update(m.getMemberId(), tileList);
+				break;
+			case Way:
+				wmap.update(m.getMemberId(), tileList);
+				break;
+			case Relation:
+			default:
+				// not handled
+			}		
+		}
 	}
 	
 	public void setup() throws IOException {
