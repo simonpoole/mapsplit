@@ -786,8 +786,8 @@ public class MapSplit {
 		time = System.currentTimeMillis() - time;
 		
 		double nratio = split.nmap.getMissHitRatio();
-		double wratio = split.nmap.getMissHitRatio();
-		double rratio = split.nmap.getMissHitRatio();
+		double wratio = split.wmap.getMissHitRatio();
+		double rratio = split.rmap.getMissHitRatio();
 			
 		if (polygonFile != null) {
 			if (verbose)
@@ -818,9 +818,9 @@ public class MapSplit {
 			System.out.println("Ways     : " + split.wmap.getLoad());
 			System.out.println("Relations: " + split.rmap.getLoad());
 			System.out.println("\nHashmap's MissHitRatio:");
-			System.out.printf("Nodes    : %10.6f", nratio);
-			System.out.printf("Ways     : %10.6f", wratio);
-			System.out.printf("Relations: %10.6f", rratio);
+			System.out.printf("Nodes    : %10.6f\n", nratio);
+			System.out.printf("Ways     : %10.6f\n", wratio);
+			System.out.printf("Relations: %10.6f\n", rratio);
 		}
 		
 		return split.latestDate;
