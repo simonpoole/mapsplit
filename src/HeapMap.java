@@ -70,7 +70,7 @@ public class HeapMap implements OsmMap {
 	}
 
 	private static long KEY(long key) {
-		return key;
+	    return 0x7fffffff & (int) (1664525*key + 1013904223);
 	}
 	
 	/* (non-Javadoc)
