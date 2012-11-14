@@ -96,6 +96,9 @@ public class MapSplit {
 	// the hashmap for all relations in the osm map
 	private OsmMap rmap;
 
+	// a map of ways that need to be added in a second run
+	private HashMap<Long, Collection<Long>> extraWayMap = null;
+	
 	// a bitset telling the algorithm which tiles need to be rerendered
 	private BitSet modifiedTiles = new BitSet();
 	
@@ -105,7 +108,7 @@ public class MapSplit {
 
 	
 	
-	public MapSplit(Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile) {
+	public MapSplit(Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations) {
 		this.border = border;
 		this.input = inputFile;
 		this.appointmentDate = appointmentDate;
@@ -113,6 +116,8 @@ public class MapSplit {
 		nmap = new HeapMap(mapSizes[0]);
 		wmap = new HeapMap(mapSizes[1]);
 		rmap = new HeapMap(mapSizes[2]);
+		if (completeRelations)
+			extraWayMap = new HashMap<Long, Collection<Long>>();
 	}
 
 	public static double tile2lon(int x) {
@@ -353,6 +358,16 @@ public class MapSplit {
 		}
 	}
 	
+	private void addExtraWayToMap(Way way, Collection<Long> tileList) {
+		
+		for (WayNode wayNode : way.getWayNodes()) {
+
+			// update map so that the node knows about any additional
+			// tile it has to be stored in
+			nmap.update(wayNode.getNodeId(), tileList);
+		}
+	}
+	
 	private void addRelationToMap(Relation r) {
 		
 		boolean multipolygon = false;
@@ -452,6 +467,8 @@ public class MapSplit {
 				break;
 			case Way:
 				wmap.update(m.getMemberId(), tileList);
+				if (extraWayMap != null)
+					extraWayMap.put(m.getMemberId(), tileList);
 				break;
 			case Relation:
 			default:
@@ -509,6 +526,44 @@ public class MapSplit {
 		
 		if (!complete)
 			throw new IOException("Could not read file fully");
+		
+		
+		// Second run if we are in complete-relation-mode
+		if (extraWayMap != null) {
+
+			complete = false;
+			
+			reader = new OsmosisReader(new FileInputStream(input));
+			reader.setSink(new Sink() {
+				@Override
+				public void release() { /* nothing to be done */ }			
+				@Override
+				public void complete() { complete = true; }
+				@Override
+				public void process(EntityContainer ec) {
+					if (ec instanceof WayContainer) {
+						
+						Way w = ((WayContainer) ec).getEntity();
+						Collection<Long> tileList = extraWayMap.get(w.getId());
+						if (tileList != null)
+							addExtraWayToMap(w, tileList);						
+					}
+				}
+			});
+
+			readerThread = new Thread(reader);
+			readerThread.start();		
+			while (readerThread.isAlive()) {
+				try {
+					readerThread.join();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			if (!complete)
+				throw new IOException("Could not read file fully in second run");
+		}
 	}
 	
 	
@@ -775,11 +830,12 @@ public class MapSplit {
 			 			    Date appointmentDate,
 			 			    boolean metadata,
 						    boolean verbose,
-						    boolean timing) throws Exception {
+						    boolean timing,
+						    boolean completeRelations) throws Exception {
 
 		long startup = System.currentTimeMillis();
 
-		MapSplit split = new MapSplit(appointmentDate, mapSizes, maxFiles, border, new File(inputFile));
+		MapSplit split = new MapSplit(appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations);
 		
 		long time = System.currentTimeMillis();
 		split.setup();
@@ -838,6 +894,7 @@ public class MapSplit {
 		System.out.println("  -v, --verbose      additional informational output");
 		System.out.println("  -t, --timing       output timing information");
 		System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
+		System.out.println("  -c, --completeMPs  store complete data for multi polygons");
 		System.out.println("  -f, --fd-max=val   maximum number of open files at a time");
 		System.out.println("  -b, --border=val   enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.");
 		System.out.println("  -p, --polygon=file only save tiles that intersect or lie within the given polygon file");
@@ -859,6 +916,7 @@ public class MapSplit {
 		boolean verbose = false;
 		boolean timing = false;
 		boolean metadata = false;
+		boolean completeRelations = false;
 		String dateFile = null;
 		int[] mapSizes = new int[]{NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE};
 		int maxFiles = -1;
@@ -881,6 +939,9 @@ public class MapSplit {
 					break;
 				case 'm':
 					metadata = true;
+					break;
+				case 'c':
+					completeRelations = true;
 					break;
 				case 'f':
 					idx = args[i].indexOf('=');
@@ -982,7 +1043,7 @@ public class MapSplit {
 		
 		// Actually run the splitter... 
 		Date latest = run(inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, 
-                          metadata, verbose, timing);
+                          metadata, verbose, timing, completeRelations);
 		
 		if (verbose)
 			System.out.println("Last changes to the map had been done on " + df.format(latest));
