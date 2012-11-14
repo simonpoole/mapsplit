@@ -234,6 +234,8 @@ public class HeapMap implements OsmMap {
 	public void update(long key, Collection<Long> tiles) {
 		
 		int bucket = getBucket(key);
+		if (bucket == -1)
+			return;
 		long val = values[bucket];
 		int tx = tileX(val);
 		int ty = tileY(val);
