@@ -333,9 +333,9 @@ public class MapSplit {
 			tileList.add(tile);
 		}
 
-		// TODO check/verify if 9 tiles is ok or if there might be corner-cases with only 4 tiles
-		// with more than 9 (or 4?!) tiles in the list we might have a "hole"
-		if (tileList.size() >= 9) {
+		// TODO check/verify if 8 tiles is ok or if there might be corner-cases with only 4 tiles
+		// with more than 8 (or 4?!) tiles in the list we might have a "hole"
+		if (tileList.size() >= 8) {
 			checkAndFill(tileList);
 		}
 			
@@ -450,7 +450,11 @@ public class MapSplit {
 			System.out.println("Ignoring empty relation");
 			return;
 		}
-			
+		
+		if (tileList.size() >= 8) {
+			checkAndFill(tileList);
+		}
+		
 		long val = tileList.iterator().next();
 		int tx = rmap.tileX(val);
 		int ty = rmap.tileY(val);
