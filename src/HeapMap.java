@@ -86,7 +86,7 @@ public class HeapMap implements OsmMap {
 
 		while (true) {
 			if (values[bucket] == 0) {
-				keys[bucket] = KEY(key);
+				keys[bucket] = key;
 				values[bucket] = value;
 				return;
 			} 
@@ -108,7 +108,7 @@ public class HeapMap implements OsmMap {
 
 		while (true) {
 			if (values[bucket] != 0l) {
-				if ((keys[bucket] & KEY_MASK) == KEY(key)) {
+				if ((keys[bucket] & KEY_MASK) == key) {
 					hits++;
 					return bucket;
 				}
