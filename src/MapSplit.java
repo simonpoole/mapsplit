@@ -484,8 +484,12 @@ public class MapSplit {
 			}		
 		}
 	}
-	
-	public void setup() throws IOException {
+
+        static int nCount = 0;
+        static int wCount = 0;
+        static int rCount = 0;
+    
+	public void setup(final boolean verbose) throws IOException {
 		
 		RunnableSource reader =	new OsmosisReader(new FileInputStream(input));
 		reader.setSink(new Sink() {
@@ -499,16 +503,31 @@ public class MapSplit {
 					
 					Node n = ((NodeContainer) ec).getEntity();
 					addNodeToMap(n, n.getLatitude(), n.getLongitude());
+					if (verbose) {
+					    nCount++;
+					    if ((nCount % (nmap.getSize()/20)) == 0)
+						System.out.println(nCount + " nodes processed");
+					}
 					
 				} else if (ec instanceof WayContainer) {
 					
 					Way w = ((WayContainer) ec).getEntity();
 					addWayToMap(w);
+					if (verbose) {
+					    wCount++;
+					    if ((wCount % (wmap.getSize()/20)) == 0)
+						System.out.println(wCount + " ways processed");
+					}
 					
 				} else if (ec instanceof RelationContainer) {
 					
 					Relation r = ((RelationContainer) ec).getEntity();
 					addRelationToMap(r);
+					if (verbose) {
+					    rCount++;
+					    if ((rCount % (rmap.getSize()/20)) == 0)
+						System.out.println(wCount + " relations processed");
+					}
 					
 				} else if (ec instanceof BoundContainer) {
 					
@@ -535,7 +554,10 @@ public class MapSplit {
 		if (!complete)
 			throw new IOException("Could not read file fully");
 		
-		
+		if (verbose) {
+		    System.out.println("We have read:\n" + nCount + " nodes\n" + wCount + " ways\n" + rCount + " relations");
+		}
+
 		// Second run if we are in complete-relation-mode
 		if (extraWayMap != null) {
 
@@ -846,7 +868,7 @@ public class MapSplit {
 		MapSplit split = new MapSplit(appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations);
 		
 		long time = System.currentTimeMillis();
-		split.setup();
+		split.setup(verbose);
 		time = System.currentTimeMillis() - time;
 		
 		double nratio = split.nmap.getMissHitRatio();
