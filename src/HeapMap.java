@@ -57,6 +57,10 @@ public class HeapMap implements OsmMap {
 		values = new long[size];
 	}
 
+        public int getSize() {
+	    return size;
+	}
+    
 	public int tileX(long value) {
 		return (int) ((value & TILE_X_MASK) >>> TILE_X_SHIFT);
 	}

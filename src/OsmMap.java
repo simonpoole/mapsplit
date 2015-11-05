@@ -103,4 +103,10 @@ public interface OsmMap {
 	 * @return the neighbourhood information
 	 */
 	public int neighbour(long value);
+
+        /**
+	 * return the size of the map, i.e. the max number of elements that would fit in that map
+	 * @return the size of this map
+	 */
+        public int getSize();
 }
