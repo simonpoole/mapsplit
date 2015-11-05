@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cd $(dirname $0)
-java -cp lib/mapsplit.jar:lib/protobuf-java-2.4.1.jar:lib/osmpbf.jar:lib/osmosis-pbf-0.39-70-g0d3a7b7.jar:lib/osmosis-core-0.39-70-g0d3a7b7.jar MapSplit $@
+java -Xmx19G -cp lib/mapsplit.jar:lib/protobuf-java-2.4.1.jar:lib/osmpbf.jar:lib/osmosis-pbf-0.39-70-g0d3a7b7.jar:lib/osmosis-core-0.39-70-g0d3a7b7.jar MapSplit $@
