@@ -1,0 +1,26 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+repositories {
+    jcenter()
+    mavenCentral()
+    maven { url 'http://nexus.onebusaway.org/nexus/content/repositories/public/' }
+}
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'mapsplit fat jar',
+            'Implementation-Version': '0.0',
+            'Main-Class': 'MapSplit'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+dependencies {
+    compile 'org.openstreetmap.osmosis:osmosis-core:0.47'
+    compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
+    compile 'com.google.protobuf:protobuf-java:3.6.1'
+}
