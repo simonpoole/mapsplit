@@ -20,7 +20,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -33,6 +32,13 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
@@ -984,31 +990,8 @@ public class MapSplit {
         return split.latestDate;
     }
 
-    private static void help() {
-        System.out.println("Usage: mapsplit [options] <infile> <output base>");
-        System.out.println("Mapsplit loads infile and stores any tile or tiles that got changed since a specified date in a tile file.\n");
-        System.out.println("infile: A tile file in pbf format");
-        System.out.println(
-                "output base: this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers at zoom 13\n");
-
-        System.out.println("Options:");
-        System.out.println("  -h, --help         this help");
-        System.out.println("  -v, --verbose      additional informational output");
-        System.out.println("  -t, --timing       output timing information");
-        System.out.println("  -m, --metadata     store metadata in tile-files (e.g. needed for JOSM)");
-        System.out.println("  -c, --completeMPs  store complete data for multi polygons");
-        System.out.println("  -f, --fd-max=val   maximum number of open files at a time");
-        System.out.println("  -b, --border=val   enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.");
-        System.out.println("  -p, --polygon=file only save tiles that intersect or lie within the given polygon file");
-        System.out.println("  -d, --date=file    file containing the date since when tiles are being considered to have changed");
-        System.out.println("                     after the split the latest change in infile is going to be stored in file");
-        System.out.println("  -s, --size=n,w,r   the size for the node-, way- and relation maps to use (should be at least twice ");
-        System.out.println("                     the number of IDs). If not supplied, defaults will be taken.");
-    }
-
     public static void main(String[] args) throws Exception {
 
-        int idx, mandatory = 0;
         Date appointmentDate;
         String inputFile = null;
         String outputBase = null;
@@ -1022,97 +1005,106 @@ public class MapSplit {
         int maxFiles = -1;
         double border = 0.0;
 
-        // Simple argument parser..
-        for (int i = 0; i < args.length; i++) {
+        // arguments
+        Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();
+        Option verboseOption = Option.builder("v").longOpt("verbose").desc("verbose information during processing").build();
+        Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
+        Option metadataOption = Option.builder("m").longOpt("metadata").desc("store metadata in tile-files (version, timestamp)").build();
+        Option completeMPOption = Option.builder("c").longOpt("complete").desc("store complete data for multi polygons").build();
+        Option maxFilesOption = Option.builder("f").longOpt("maxfiles").desc("maximum number of open files at a time").build();
+        Option borderOption = Option.builder("b").longOpt("border").hasArg()
+                .desc("enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.").build();
+        Option polygonOption = Option.builder("p").longOpt("polygon").hasArg().desc("only save tiles that intersect or lie within the given polygon file.")
+                .build();
+        Option dateOption = Option.builder("d").longOpt("date").hasArg().desc(
+                "file containing the date since when tiles are being considered to have changed after the split the latest change in infile is going to be stored in file")
+                .build();
+        Option sizeOption = Option.builder("s").longOpt("size").hasArg().desc(
+                "n,w,r the size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
+                .build();
+        Option inputOption = Option.builder("i").longOpt("input").hasArgs().desc("a file in OSM pbf format").required().build();
+        Option outputOption = Option.builder("o").longOpt("output").hasArg().desc(
+                "this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers at zoom 13")
+                .required().build();
 
-            if (args[i].startsWith("-")) {
-                if (args[i].startsWith("--")) {
-                    args[i] = args[i].substring(1);
-                }
-                switch (args[i].charAt(1)) {
-                case 'h':
-                    help();
-                    System.exit(0);
-                case 'v':
-                    verbose = true;
-                    break;
-                case 't':
-                    timing = true;
-                    break;
-                case 'm':
-                    metadata = true;
-                    break;
-                case 'c':
-                    completeRelations = true;
-                    break;
-                case 'f':
-                    idx = args[i].indexOf('=');
-                    if (idx == -1) {
-                        System.out.println("Supply a number for max fds");
-                        help();
-                        System.exit(1);
-                    }
-                    String tmp = args[i].substring(idx + 1);
-                    maxFiles = Integer.valueOf(tmp);
-                    break;
-                case 'd':
-                    idx = args[i].indexOf('=');
-                    if (idx == -1) {
-                        System.err.println("Supply a date file");
-                        help();
-                        System.exit(1);
-                    }
-                    dateFile = args[i].substring(idx + 1);
-                    break;
-                case 'p':
-                    idx = args[i].indexOf('=');
-                    if (idx != -1) {
-                        polygonFile = args[i].substring(idx + 1);
-                    }
-                    break;
-                case 's':
-                    idx = args[i].indexOf('=');
-                    if (idx == -1) {
-                        System.err.println("Missing values for map sizes");
-                        help();
-                        System.exit(2);
-                    }
-                    tmp = args[i].substring(idx + 1);
-                    String[] vals = tmp.split(",");
-                    for (int j = 0; j < 3; j++) {
-                        mapSizes[j] = Integer.valueOf(vals[j]);
-                    }
-                    break;
-                case 'b':
-                    idx = args[i].indexOf('=');
-                    try {
-                        border = Double.valueOf(args[i].substring(idx + 1));
-                        if (border < 0) {
-                            border = 0;
-                        }
-                        if (border > 1) {
-                            border = 1;
-                        }
-                    } catch (NumberFormatException e) {
-                        System.err.println("Could not parse border parameter, falling back to defaults");
-                    }
-                    break;
-                }
-            } else if (mandatory == 0) {
-                inputFile = args[i];
-                mandatory++;
-            } else if (mandatory == 1) {
-                outputBase = args[i];
-                mandatory++;
-            } else {
-                System.err.println("Ignoring extra argument \"" + args[i] + "\"");
+        Options options = new Options();
+
+        options.addOption(helpOption);
+        options.addOption(verboseOption);
+        options.addOption(timingOption);
+        options.addOption(metadataOption);
+        options.addOption(completeMPOption);
+        options.addOption(maxFilesOption);
+        options.addOption(borderOption);
+        options.addOption(polygonOption);
+        options.addOption(dateOption);
+        options.addOption(sizeOption);
+        options.addOption(inputOption);
+        options.addOption(outputOption);
+
+        CommandLineParser parser = new DefaultParser();
+        try {
+            // parse the command line arguments
+            CommandLine line = parser.parse(options, args);
+            if (line.hasOption("h")) {
+                HelpFormatter formatter = new HelpFormatter();
+                formatter.printHelp("mapsplit", options);
+                return;
             }
-        }
+            if (line.hasOption("v")) {
+                verbose = true;
+            }
+            if (line.hasOption("t")) {
+                timing = true;
+            }
+            if (line.hasOption("m")) {
+                metadata = true;
+            }
+            if (line.hasOption("c")) {
+                completeRelations = true;
+            }
+            if (line.hasOption("f")) {
+                String tmp = line.getOptionValue("maxfiles");
+                maxFiles = Integer.valueOf(tmp);
+            }
+            if (line.hasOption("d")) {
+                dateFile = line.getOptionValue("date");
+            }
+            if (line.hasOption("p")) {
+                polygonFile = line.getOptionValue("ploygon");
+            }
+            if (line.hasOption("s")) {
+                String tmp = line.getOptionValue("size");
+                String[] vals = tmp.split(",");
+                for (int j = 0; j < 3; j++) {
+                    mapSizes[j] = Integer.valueOf(vals[j]);
+                }
+            }
+            if (line.hasOption("b")) {
+                String tmp = line.getOptionValue("border");
+                try {
+                    border = Double.valueOf(tmp);
+                    if (border < 0) {
+                        border = 0;
+                    }
+                    if (border > 1) {
+                        border = 1;
+                    }
+                } catch (NumberFormatException e) {
+                    System.err.println("Could not parse border parameter, falling back to defaults");
+                }
+            }
+            if (line.hasOption("i")) {
+                inputFile = line.getOptionValue("input");
+            }
 
-        if (mandatory < 2) {
-            System.err.println("Please supply an input file and output basename");
-            help();
-            System.exit(3);
+            if (line.hasOption("o")) {
+                outputBase = line.getOptionValue("output");
+            }
+        } catch (ParseException exp) {
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp("mapsplit", options);
+            return;
         }
 
         // Date-setup as fall-back option
@@ -1132,7 +1124,7 @@ public class MapSplit {
                 if (line != null) {
                     try {
                         appointmentDate = df.parse(line);
-                    } catch (ParseException pe) {
+                    } catch (java.text.ParseException pe) {
                         if (verbose) {
                             System.out.println("Could not parse datefile.");
                         }
