@@ -24,4 +24,5 @@ dependencies {
     compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
     compile 'com.google.protobuf:protobuf-java:3.6.1'
     compile 'commons-cli:commons-cli:1.4'
+    compile 'org.imintel:mbtiles4j:1.0.6'
 }

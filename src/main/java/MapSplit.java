@@ -12,6 +12,7 @@
  */
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -19,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -39,6 +41,9 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.imintel.mbtiles4j.MBTilesWriteException;
+import org.imintel.mbtiles4j.MBTilesWriter;
+import org.imintel.mbtiles4j.model.MetadataEntry;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
@@ -60,6 +65,8 @@ import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
 
 public class MapSplit {
+
+    private static final String PBF_EXT = ".pbf";
 
     /*
      * the zoom-level at which we render our tiles Attention: Code is not generic enough to change this value without
@@ -108,6 +115,8 @@ public class MapSplit {
 
     // the serializer (OSM writers) for any modified tile
     private Map<Integer, OsmosisSerializer> outFiles;
+
+    private Map<Integer, ByteArrayOutputStream> outBlobs;
 
     public MapSplit(Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations) {
         this.border = border;
@@ -787,9 +796,17 @@ public class MapSplit {
         }
     }
 
-    public void store(String basename, boolean metadata, boolean verbose) throws IOException {
+    public void store(String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException {
 
         int idx = 0;
+        MBTilesWriter w = null;
+        if (mbTiles) {
+            try {
+                w = new MBTilesWriter(new File(basename));
+            } catch (MBTilesWriteException e1) {
+                throw new IOException(e1);
+            }
+        }
 
         // We might call this code several times if we have more tiles
         // to store than open files allowed
@@ -797,6 +814,9 @@ public class MapSplit {
 
             complete = false;
             outFiles = new HashMap<Integer, OsmosisSerializer>();
+            if (mbTiles) {
+                outBlobs = new HashMap<Integer, ByteArrayOutputStream>();
+            }
 
             // Setup out-files...
             int count = 0;
@@ -810,17 +830,24 @@ public class MapSplit {
 
                     int tileX = idx >> 13;
                     int tileY = idx & 8191;
-                    String file;
-                    if (basename.contains("%x") && basename.contains("%y")) {
-                        file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
-                        if (!file.endsWith(".pbf")) {
-                            file = file + ".pbf";
-                        }
+
+                    OutputStream target = null;
+                    if (mbTiles) {
+                        target = new ByteArrayOutputStream();
                     } else {
-                        file = basename + tileX + "_" + tileY + ".pbf";
+                        String file;
+                        if (basename.contains("%x") && basename.contains("%y")) {
+                            file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
+                            if (!file.endsWith(PBF_EXT)) {
+                                file = file + PBF_EXT;
+                            }
+                        } else {
+                            file = basename + tileX + "_" + tileY + PBF_EXT;
+                        }
+                        target = new FileOutputStream(file);
                     }
 
-                    OsmosisSerializer serializer = new OsmosisSerializer(new BlockOutputStream(new FileOutputStream(file)));
+                    OsmosisSerializer serializer = new OsmosisSerializer(new BlockOutputStream(target));
 
                     serializer.setUseDense(true);
                     serializer.configOmit(!metadata);
@@ -831,6 +858,10 @@ public class MapSplit {
                     serializer.process(bc);
 
                     outFiles.put(idx, serializer);
+
+                    if (mbTiles) {
+                        outBlobs.put(idx, (ByteArrayOutputStream) target);
+                    }
                 }
 
                 if ((maxFiles != -1) && (++count >= maxFiles)) {
@@ -841,7 +872,20 @@ public class MapSplit {
             // Now start writing output...
 
             RunnableSource reader = new OsmosisReader(new FileInputStream(input));
-            reader.setSink(new Sink() {
+
+            class BoundSink implements Sink {
+
+                Bound overallBounds = null;
+
+                /**
+                 * Get the overall bounds of the data
+                 * 
+                 * @return a Bound object or null
+                 */
+                Bound getBounds() {
+                    return overallBounds;
+                }
+
                 @Override
                 public void complete() {
                     complete = true;
@@ -860,7 +904,12 @@ public class MapSplit {
                     } else if (ec instanceof RelationContainer) {
                         tiles = rmap.getAllTiles(id);
                     } else if (ec instanceof BoundContainer) {
-                        // nothing todo, we ignore bound tags
+                        Bound bounds = ((BoundContainer) ec).getEntity();
+                        if (overallBounds == null) {
+                            overallBounds = bounds;
+                        } else {
+                            overallBounds.union(bounds);
+                        }
                         return;
                     } else {
                         System.err.println("Unknown Element while reading");
@@ -887,16 +936,17 @@ public class MapSplit {
 
                 @Override
                 public void initialize(Map<String, Object> metaData) {
-                    // TODO Auto-generated method stub
-
+                    // do nothing
                 }
 
                 @Override
                 public void close() {
-                    // TODO Auto-generated method stub
-
+                    // do nothing
                 }
-            });
+            }
+            ;
+            BoundSink sink = new BoundSink();
+            reader.setSink(sink);
 
             Thread readerThread = new Thread(reader);
             readerThread.start();
@@ -919,9 +969,39 @@ public class MapSplit {
                 ser.complete();
                 ser.flush();
                 ser.close();
+                if (mbTiles) {
+                    int tileX = entry.getKey() >> 13;
+                    int tileY = entry.getKey() & 8191;
+                    ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
+                    try {
+                        w.addTile(blob.toByteArray(), 13, tileY, tileX);
+                    } catch (MBTilesWriteException e) {
+                        throw new IOException(e);
+                    }
+                }
             }
 
             if (idx == -1) {
+                // Add metadata parts
+                if (mbTiles) {
+                    MetadataEntry ent = new MetadataEntry();
+                    File file = new File(basename);
+                    ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion("0.2.0")
+                            .setAttribution("OpenStreetMap Contributors ODbL 1.0").addCustomKeyValue("format", "application/vnd.openstreetmap.data+pbf")
+                            .addCustomKeyValue("minzoom", Integer.toString(ZOOM)).addCustomKeyValue("maxzoom", Integer.toString(ZOOM));
+                    Bound bounds = sink.getBounds();
+                    if (bounds != null) {
+                        ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
+                    } else {
+                        ent.setTilesetBounds(-180, -85, 180, 85);
+                    }
+                    try {
+                        w.addMetadataEntry(ent);
+                    } catch (MBTilesWriteException e) {
+                        throw new IOException(e);
+                    }
+                    w.close();
+                }
                 break;
             }
 
@@ -936,7 +1016,7 @@ public class MapSplit {
      */
 
     private static Date run(String inputFile, String outputBase, String polygonFile, int[] mapSizes, int maxFiles, double border, Date appointmentDate,
-            boolean metadata, boolean verbose, boolean timing, boolean completeRelations) throws Exception {
+            boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles) throws Exception {
 
         long startup = System.currentTimeMillis();
 
@@ -967,7 +1047,7 @@ public class MapSplit {
         }
 
         time = System.currentTimeMillis();
-        split.store(outputBase, metadata, verbose);
+        split.store(outputBase, metadata, verbose, mbTiles);
         time = System.currentTimeMillis() - time;
         if (timing) {
             System.out.println("Saving " + modified + " tiles took " + time + "ms");
@@ -1000,6 +1080,7 @@ public class MapSplit {
         boolean timing = false;
         boolean metadata = false;
         boolean completeRelations = false;
+        boolean mbTiles = false;
         String dateFile = null;
         int[] mapSizes = new int[] { NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE };
         int maxFiles = -1;
@@ -1011,7 +1092,8 @@ public class MapSplit {
         Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
         Option metadataOption = Option.builder("m").longOpt("metadata").desc("store metadata in tile-files (version, timestamp)").build();
         Option completeMPOption = Option.builder("c").longOpt("complete").desc("store complete data for multi polygons").build();
-        Option maxFilesOption = Option.builder("f").longOpt("maxfiles").desc("maximum number of open files at a time").build();
+        Option mbTilesOption = Option.builder("x").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
+        Option maxFilesOption = Option.builder("f").longOpt("maxfiles").hasArg().desc("maximum number of open files at a time").build();
         Option borderOption = Option.builder("b").longOpt("border").hasArg()
                 .desc("enlarge tiles by val ([0-1[) of the tile's size to get a border around the tile.").build();
         Option polygonOption = Option.builder("p").longOpt("polygon").hasArg().desc("only save tiles that intersect or lie within the given polygon file.")
@@ -1024,7 +1106,7 @@ public class MapSplit {
                 .build();
         Option inputOption = Option.builder("i").longOpt("input").hasArgs().desc("a file in OSM pbf format").required().build();
         Option outputOption = Option.builder("o").longOpt("output").hasArg().desc(
-                "this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers at zoom 13")
+                "if creating a MBTiels files this is the name of the file, otherwise this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers at zoom 13")
                 .required().build();
 
         Options options = new Options();
@@ -1034,6 +1116,7 @@ public class MapSplit {
         options.addOption(timingOption);
         options.addOption(metadataOption);
         options.addOption(completeMPOption);
+        options.addOption(mbTilesOption);
         options.addOption(maxFilesOption);
         options.addOption(borderOption);
         options.addOption(polygonOption);
@@ -1062,6 +1145,9 @@ public class MapSplit {
             }
             if (line.hasOption("c")) {
                 completeRelations = true;
+            }
+            if (line.hasOption("x")) {
+                mbTiles = true;
             }
             if (line.hasOption("f")) {
                 String tmp = line.getOptionValue("maxfiles");
@@ -1142,7 +1228,8 @@ public class MapSplit {
         }
 
         // Actually run the splitter...
-        Date latest = run(inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations);
+        Date latest = run(inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations,
+                mbTiles);
 
         if (verbose) {
             System.out.println("Last changes to the map had been done on " + df.format(latest));
