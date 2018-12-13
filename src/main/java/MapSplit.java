@@ -44,6 +44,8 @@ import org.apache.commons.cli.ParseException;
 import org.imintel.mbtiles4j.MBTilesWriteException;
 import org.imintel.mbtiles4j.MBTilesWriter;
 import org.imintel.mbtiles4j.model.MetadataEntry;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
@@ -642,14 +644,12 @@ public class MapSplit {
 
                 @Override
                 public void initialize(Map<String, Object> metaData) {
-                    // TODO Auto-generated method stub
-
+                    // not used
                 }
 
                 @Override
                 public void close() {
-                    // TODO Auto-generated method stub
-
+                    // not used
                 }
             });
 
@@ -796,7 +796,16 @@ public class MapSplit {
         }
     }
 
-    public void store(String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException {
+    /**
+     * Read the input file, process the OSM elements and write them out
+     * 
+     * @param basename the basename for individual tile files or the name of a MBTiles format sqlite database
+     * @param metadata write metadata (version, timestamp, etc)
+     * @param verbose verbose output if true
+     * @param mbTiles write to a MBTiles format sqlite database instead of writing individual tiles
+     * @throws IOException if reading or creating the files has an issue
+     */
+    public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException {
 
         int idx = 0;
         MBTilesWriter w = null;
@@ -1011,12 +1020,26 @@ public class MapSplit {
         }
     }
 
-    /*
-     * Command line handling and main function
+    /**
+     * Set up options from the command line and run the tiler
+     * 
+     * @param inputFile the input PBF file
+     * @param outputBase
+     * @param polygonFile
+     * @param mapSizes
+     * @param maxFiles
+     * @param border
+     * @param appointmentDate
+     * @param metadata
+     * @param verbose
+     * @param timing
+     * @param completeRelations
+     * @param mbTiles
+     * @return
+     * @throws Exception
      */
-
-    private static Date run(String inputFile, String outputBase, String polygonFile, int[] mapSizes, int maxFiles, double border, Date appointmentDate,
-            boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles) throws Exception {
+    private static Date run(@NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles, double border,
+            Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles) throws Exception {
 
         long startup = System.currentTimeMillis();
 
@@ -1235,8 +1258,9 @@ public class MapSplit {
             System.out.println("Last changes to the map had been done on " + df.format(latest));
         }
         if (dateFile != null) {
-            DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));
-            dos.writeUTF(df.format(latest));
+            try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));) {
+                dos.writeUTF(df.format(latest));
+            }
         }
     }
 }
