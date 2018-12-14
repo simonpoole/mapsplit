@@ -55,7 +55,6 @@ import org.openstreetmap.osmosis.core.domain.v0_6.Bound;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 import org.openstreetmap.osmosis.core.domain.v0_6.Relation;
 import org.openstreetmap.osmosis.core.domain.v0_6.RelationMember;
-import org.openstreetmap.osmosis.core.domain.v0_6.Tag;
 import org.openstreetmap.osmosis.core.domain.v0_6.Way;
 import org.openstreetmap.osmosis.core.domain.v0_6.WayNode;
 import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
@@ -75,7 +74,7 @@ public class MapSplit {
      * further code changes! ;)
      */
     private static final int ZOOM = 13;
-    
+
     private static final int YMAX = 1 << ZOOM; // TMS scheme
 
     /*
@@ -101,6 +100,9 @@ public class MapSplit {
 
     // internal store to check if reading the file worked
     private boolean complete = false;
+
+    // verbose outpu
+    private boolean verbose = false;
 
     // the hashmap for all nodes in the osm map
     private OsmMap nmap;
@@ -346,7 +348,7 @@ public class MapSplit {
             // get tileNrs for given node
             long tile = nmap.get(wayNode.getNodeId());
 
-            // don't ignore missing nodes 
+            // don't ignore missing nodes
             if (tile == 0) {
                 return;
             }
@@ -409,23 +411,6 @@ public class MapSplit {
 
     private void addRelationToMap(Relation r) {
 
-        boolean multipolygon = false;
-        boolean boundary = false;
-
-        for (Tag tag : r.getTags()) {
-            if (tag.getKey().equals("type") && tag.getValue().equals("multipolygon")) {
-                multipolygon = true;
-            }
-            if (tag.getKey().equals("boundary")) {
-                boundary = true;
-            }
-        }
-
-        // We only treat multipolygons right now
-        if (!multipolygon || boundary) {
-            return;
-        }
-
         boolean modified = r.getTimestamp().after(appointmentDate);
         Collection<Long> tileList = new TreeSet<Long>();
 
@@ -441,7 +426,9 @@ public class MapSplit {
 
                 // The referenced node is not in our data set
                 if (tile == 0) {
-                    System.out.println("Non-complete Relation " + r.getId() + " (missing a node)");
+                    if (verbose) {
+                        System.out.println("Non-complete Relation " + r.getId() + " (missing a node)");
+                    }
                     continue;
                 }
 
@@ -471,7 +458,9 @@ public class MapSplit {
 
                 // The referenced way is not in our data set
                 if (list == null) {
-                    System.out.println("Non-complete Relation " + r.getId() + " (missing a way)");
+                    if (verbose) {
+                        System.out.println("Non-complete Relation " + r.getId() + " (missing a way)");
+                    }
                     return;
                 }
 
@@ -488,8 +477,25 @@ public class MapSplit {
                 break;
 
             case Relation:
-            default:
-                // Not handled
+                list = rmap.getAllTiles(m.getMemberId());
+
+                // The referenced way is not in our data set
+                if (list == null) {
+                    if (verbose) {
+                        System.out.println("Non-complete Relation " + r.getId() + " (missing a relation)");
+                    }
+                    return;
+                }
+
+                if (modified) {
+                    for (Integer i : list) {
+                        modifiedTiles.set(i);
+                    }
+                }
+                for (int i : list) {
+                    tileList.add(((long) i) << 38);
+                }
+                break;
             }
         }
 
@@ -535,6 +541,8 @@ public class MapSplit {
     static int rCount = 0;
 
     public void setup(final boolean verbose) throws IOException {
+
+        this.verbose = verbose;
 
         RunnableSource reader = new OsmosisReader(new FileInputStream(input));
         reader.setSink(new Sink() {
