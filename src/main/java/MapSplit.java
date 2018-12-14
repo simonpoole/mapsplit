@@ -75,6 +75,8 @@ public class MapSplit {
      * further code changes! ;)
      */
     private static final int ZOOM = 13;
+    
+    private static final int YMAX = 1 << ZOOM; // TMS scheme
 
     /*
      * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
@@ -974,16 +976,16 @@ public class MapSplit {
             // Finish and close files...
             for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
                 OsmosisSerializer ser = entry.getValue();
-
                 ser.complete();
                 ser.flush();
                 ser.close();
                 if (mbTiles) {
                     int tileX = entry.getKey() >> 13;
                     int tileY = entry.getKey() & 8191;
+                    int y = YMAX - tileY - 1; // TMS scheme
                     ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
                     try {
-                        w.addTile(blob.toByteArray(), 13, tileY, tileX);
+                        w.addTile(blob.toByteArray(), 13, tileX, y);
                     } catch (MBTilesWriteException e) {
                         throw new IOException(e);
                     }
