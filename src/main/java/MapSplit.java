@@ -344,15 +344,22 @@ public class MapSplit {
             latestDate = way.getTimestamp();
         }
 
+        List<Long> tiles = new ArrayList<>();
         for (WayNode wayNode : way.getWayNodes()) {
             // get tileNrs for given node
             long tile = nmap.get(wayNode.getNodeId());
 
             // don't ignore missing nodes
             if (tile == 0) {
+                if (verbose) {
+                    System.out.println("way " + way.getId() + " missing node " + wayNode.getNodeId());
+                }
                 return;
             }
+            tiles.add(tile);
+        }
 
+        for (long tile : tiles) {
             // mark tiles (and possible neighbours) as modified
             if (modified) {
                 int tx = nmap.tileX(tile);
@@ -399,7 +406,13 @@ public class MapSplit {
         }
     }
 
-    private void addExtraWayToMap(Way way, Collection<Long> tileList) {
+    /**
+     * Iterate over the way nodes and add tileList to the list of tiles they are supposed to be in
+     * 
+     * @param way the Way we are processing
+     * @param tileList the List of tiles
+     */
+    private void addExtraWayToMap(@NotNull Way way, @NotNull Collection<Long> tileList) {
 
         for (WayNode wayNode : way.getWayNodes()) {
 
@@ -409,7 +422,7 @@ public class MapSplit {
         }
     }
 
-    private void addRelationToMap(Relation r) {
+    private void addRelationToMap(@NotNull Relation r) {
 
         boolean modified = r.getTimestamp().after(appointmentDate);
         Collection<Long> tileList = new TreeSet<Long>();
@@ -518,20 +531,24 @@ public class MapSplit {
         // update map so that the relation knows in which tiles it is needed
         rmap.update(r.getId(), tileList);
 
-        for (RelationMember m : r.getMembers()) {
-            switch (m.getMemberType()) {
-            case Node:
-                nmap.update(m.getMemberId(), tileList);
-                break;
-            case Way:
-                wmap.update(m.getMemberId(), tileList);
-                if (extraWayMap != null) {
+        if (extraWayMap != null) {
+            // only add members to all the tiles if we are in
+            // completeRelations mode
+            for (RelationMember m : r.getMembers()) {
+                switch (m.getMemberType()) {
+                case Node:
+                    nmap.update(m.getMemberId(), tileList);
+                    break;
+                case Way:
+                    wmap.update(m.getMemberId(), tileList);
                     extraWayMap.put(m.getMemberId(), tileList);
+                    break;
+                case Relation:
+                    rmap.update(m.getMemberId(), tileList);
+                    break;
+                case Bound:
+                    break;
                 }
-                break;
-            case Relation:
-            default:
-                // not handled
             }
         }
     }
