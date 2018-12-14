@@ -346,9 +346,9 @@ public class MapSplit {
             // get tileNrs for given node
             long tile = nmap.get(wayNode.getNodeId());
 
-            // ignore missing nodes (extract with incomplete ways)
+            // don't ignore missing nodes 
             if (tile == 0) {
-                continue;
+                return;
             }
 
             // mark tiles (and possible neighbours) as modified
