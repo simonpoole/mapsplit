@@ -31,10 +31,10 @@ public interface OsmMap {
     /**
      * put a new value into the hash map at the given key (entity id)
      * 
-     * @param key the entrie's key (ID)
-     * @param tileX
-     * @param tileY
-     * @param neighbours
+     * @param key the entries key (ID)
+     * @param tileX x tile number
+     * @param tileY y tile number
+     * @param neighbours bit encoded neighbours
      */
     public abstract void put(long key, int tileX, int tileY, int neighbours);
 
@@ -42,7 +42,7 @@ public interface OsmMap {
      * returns an entry of the hashmap at the given key or 0 if not found. The return value is encoded in an internal
      * format and has to be parsed with the methods provided by this interface.
      * 
-     * @param key
+     * @param key the entries key (ID)
      * @return an entry of the hashmap at the given key or 0 if not found
      */
     public abstract long get(long key);
@@ -51,8 +51,8 @@ public interface OsmMap {
      * update key so it knows about all tiles where it is needed. The given longs in the list are expected in this map's
      * format. Neighbourhood of the tile-IDs are evaluated.
      * 
-     * @param key
-     * @param tiles
+     * @param key the entries key (ID)
+     * @param tiles a Collection of tiles in encoded form including neighbour bits
      */
     public abstract void update(long key, Collection<Long> tiles);
 

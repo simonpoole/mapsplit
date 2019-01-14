@@ -27,6 +27,30 @@ public class HeapMap implements OsmMap {
     private static final long BUCKET_FULL_MASK  = 1l << BUCKET_FULL_SHIFT;
     private static final long KEY_MASK          = ~BUCKET_FULL_MASK;
 
+    /* Value encoding
+     
+    6              5               3 3 3
+    3              1               8 6 5
+    XXXX XXXX XXXX XYYY YYYY YYYY YYNN Ennn nnnn nnnn nnnn nnnn nnnn nnnn nnnn nnnn
+
+    X - tile number
+    Y - tile number
+    N - bits indicating immediate "neigbours"
+    E - extended "neighbour" list used
+    n - bits for "short" neighbour index
+
+    Tiles indexed in "short" list (T original tile)
+      -- 
+      210123
+    -2xxxxxx
+    -1xxxxxx
+     0xxTxxx
+     1xxxxxx
+     2xxxxxx
+     3xxxxxx
+     
+     */
+     
     // used on values
     static final int  TILE_X_SHIFT     = 51;
     static final long TILE_X_MASK      = 8191l << TILE_X_SHIFT;
@@ -54,22 +78,32 @@ public class HeapMap implements OsmMap {
         values = new long[size];
     }
 
+    @Override
     public int getSize() {
         return size;
     }
 
+    @Override
     public int tileX(long value) {
         return (int) ((value & TILE_X_MASK) >>> TILE_X_SHIFT);
     }
 
+    @Override
     public int tileY(long value) {
         return (int) ((value & TILE_Y_MASK) >>> TILE_Y_SHIFT);
     }
 
+    @Override
     public int neighbour(long value) {
         return (int) ((value & NEIGHBOUR_MASK) >> NEIGHBOUR_SHIFT);
     }
 
+    /**
+     * The hash function
+     * 
+     * @param key the key
+     * @return the hash for key
+     */
     private static long KEY(long key) {
         return 0x7fffffff & (int) (1664525 * key + 1013904223);
     }
@@ -79,6 +113,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#put(long, int, int, int)
      */
+    @Override
     public void put(long key, int tileX, int tileY, int neighbours) {
         int count = 0;
 
@@ -138,6 +173,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#get(long)
      */
+    @Override
     public long get(long key) {
         int bucket = getBucket(key);
 
@@ -244,6 +280,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#update(long, java.util.List)
      */
+    @Override
     public void update(long key, Collection<Long> tiles) {
 
         int bucket = getBucket(key);
@@ -355,6 +392,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#getAllTiles(long)
      */
+    @Override
     public List<Integer> getAllTiles(long key) {
 
         List<Integer> result;
@@ -402,6 +440,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#getLoad()
      */
+    @Override
     public double getLoad() {
         int count = 0;
         for (int i = 0; i < size; i++) {
@@ -417,6 +456,7 @@ public class HeapMap implements OsmMap {
      * 
      * @see OsmMap#getMissHitRatio()
      */
+    @Override
     public double getMissHitRatio() {
         return ((double) misses) / ((double) hits);
     }
