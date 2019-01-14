@@ -26,9 +26,9 @@ public class HeapMap implements OsmMap {
     private static final int  BUCKET_FULL_SHIFT = 63;
     private static final long BUCKET_FULL_MASK  = 1l << BUCKET_FULL_SHIFT;
     private static final long KEY_MASK          = ~BUCKET_FULL_MASK;
-
+    
     /* Value encoding
-     
+    
     6              5               3 3 3
     3              1               8 6 5
     XXXX XXXX XXXX XYYY YYYY YYYY YYNN Ennn nnnn nnnn nnnn nnnn nnnn nnnn nnnn nnnn
@@ -50,15 +50,14 @@ public class HeapMap implements OsmMap {
      3xxxxxx
      
      */
-     
-    // used on values
     static final int  TILE_X_SHIFT     = 51;
-    static final long TILE_X_MASK      = 8191l << TILE_X_SHIFT;
     static final int  TILE_Y_SHIFT     = 38;
-    static final long TILE_Y_MASK      = 8191l << TILE_Y_SHIFT;
-    static final int  NEIGHBOUR_SHIFT  = 36;
+    static final long TILE_X_MASK      = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
+    static final long TILE_Y_MASK      = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
+
+    static final int  NEIGHBOUR_SHIFT  = TILE_Y_SHIFT - 2;
     static final long NEIGHBOUR_MASK   = 3l << NEIGHBOUR_SHIFT;
-    static final int  TILE_EXT_SHIFT   = 35;
+    static final int  TILE_EXT_SHIFT   = TILE_Y_SHIFT -3;
     static final long TILE_EXT_MASK    = 1l << TILE_EXT_SHIFT;
     static final long TILE_MARKER_MASK = 0x7FFFFFFFFl;
 
@@ -115,6 +114,9 @@ public class HeapMap implements OsmMap {
      */
     @Override
     public void put(long key, int tileX, int tileY, int neighbours) {
+        if (key < 0) {
+            throw new IllegalArgumentException("Ids are limited to positive longs");
+        }
         int count = 0;
 
         int bucket = (int) (KEY(key) % size);
@@ -246,8 +248,8 @@ public class HeapMap implements OsmMap {
             // add current stuff to tiles list
             List<Integer> tmpList = parseMarker(val);
             for (int i : tmpList) {
-                long tx = i >> 13;
-                long ty = i & 8191;
+                long tx = i >> Const.ZOOM;
+                long ty = i & Const.MAX_TILE_NUMBER;
                 long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
 
                 tiles.add(temp);
@@ -424,12 +426,12 @@ public class HeapMap implements OsmMap {
         // TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
 
         // add the tile (and possible neighbours)
-        result.add(tx << 13 | ty);
+        result.add(tx << Const.ZOOM | ty);
         if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-            result.add((tx + 1) << 13 | ty);
+            result.add((tx + 1) << Const.ZOOM | ty);
         }
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-            result.add(tx << 13 | (ty + 1));
+            result.add(tx << Const.ZOOM | (ty + 1));
         }
 
         return result;

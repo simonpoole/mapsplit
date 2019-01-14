@@ -69,13 +69,7 @@ public class MapSplit {
 
     private static final String PBF_EXT = ".pbf";
 
-    /*
-     * the zoom-level at which we render our tiles Attention: Code is not generic enough to change this value without
-     * further code changes! ;)
-     */
-    private static final int ZOOM = 13;
-
-    private static final int YMAX = 1 << ZOOM; // TMS scheme
+    private static final int YMAX = 1 << Const.ZOOM; // TMS scheme
 
     /*
      * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
@@ -137,25 +131,55 @@ public class MapSplit {
         }
     }
 
+    /**
+     * Calculate the longitude for a tile
+     * 
+     * @param x the x number for the tile
+     * @return the longitude
+     */
     public static double tile2lon(int x) {
-        return (x / Math.pow(2.0, ZOOM)) * 360.0 - 180.0;
+        return (x / Math.pow(2.0, Const.ZOOM)) * 360.0 - 180.0;
     }
 
+    /**
+     * Calculate the latitude for a tile
+     * 
+     * @param y the y number for the tile
+     * @return the latitude
+     */
     public static double tile2lat(int y) {
-        double n = Math.PI - 2.0 * Math.PI * y / Math.pow(2, ZOOM);
+        double n = Math.PI - 2.0 * Math.PI * y / Math.pow(2, Const.ZOOM);
         return (180.0 / Math.PI * Math.atan(0.5 * (Math.pow(Math.E, n) - Math.pow(Math.E, -n))));
     }
 
+    /**
+     * Calculate tile X number for a given longitude
+     * 
+     * @param lon the longitude
+     * @return the tile X number
+     */
     public static int lon2tileX(double lon) {
-        return (int) Math.floor((lon + 180.0) / 360.0 * Math.pow(2.0, ZOOM));
+        return (int) Math.floor((lon + 180.0) / 360.0 * Math.pow(2.0, Const.ZOOM));
     }
 
+    /**
+     * Calculate tile Y number for a given latitude
+     * 
+     * @param lat the latitude
+     * @return the tile y number
+     */
     public static int lat2tileY(double lat) {
         return (int) Math
-                .floor((1.0 - Math.log(Math.tan(lat * Math.PI / 180.0) + 1.0 / Math.cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * Math.pow(2.0, ZOOM));
+                .floor((1.0 - Math.log(Math.tan(lat * Math.PI / 180.0) + 1.0 / Math.cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * Math.pow(2.0, Const.ZOOM));
     }
 
-    /* Calculate the Bound for the given tile */
+    /**
+     * Calculate the Bound for the given tile
+     * 
+     * @param tileX tile X number
+     * @param tileY tile Y number
+     * @return a Bound object (a bound box for the tile)
+     */
     public Bound getBound(int tileX, int tileY) {
 
         double l = tile2lon(tileX);
@@ -266,8 +290,8 @@ public class MapSplit {
             ty += minY;
 
             // TODO: make this a bit nicer by delegating the id-generation to the map code
-            tiles.add(((long) tx) << 51 | ((long) ty) << 38);
-            modifiedTiles.set(tx << 13 | ty);
+            tiles.add(((long) tx) << HeapMap.TILE_X_SHIFT | ((long) ty) << HeapMap.TILE_Y_SHIFT);
+            modifiedTiles.set(tx << Const.ZOOM | ty);
         }
     }
 
@@ -291,6 +315,26 @@ public class MapSplit {
         return border * (y2 - y1);
     }
 
+    /**
+     * Add tile and neighbours to modifiedTiles
+     * 
+     * @param tx tile x number
+     * @param ty tile y number
+     * @param neighbour bit map for neighbour tiles
+     */
+    private void setModifiedTiles(int tx, int ty, int neighbour) {
+        modifiedTiles.set(tx << Const.ZOOM | ty);
+        if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
+            modifiedTiles.set((tx + 1) << Const.ZOOM | ty);
+        }
+        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
+            modifiedTiles.set(tx << Const.ZOOM | (ty + 1));
+        }
+        if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST) {
+            modifiedTiles.set((tx + 1) << Const.ZOOM | (ty + 1));
+        }
+    }
+    
     private void addNodeToMap(Node n, double lat, double lon) {
         int tileX = lon2tileX(lon);
         int tileY = lat2tileY(lat);
@@ -314,16 +358,7 @@ public class MapSplit {
 
         // mark current tile (and neighbours) to be rerendered
         if (n.getTimestamp().after(appointmentDate)) {
-            modifiedTiles.set(tileX << 13 | tileY);
-            if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-                modifiedTiles.set((tileX + 1) << 13 | tileY);
-            }
-            if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-                modifiedTiles.set(tileX << 13 | (tileY + 1));
-            }
-            if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-                modifiedTiles.set((tileX + 1) << 13 | (tileY + 1));
-            }
+            setModifiedTiles(tileX, tileY, neighbour);
         }
 
         // mark the latest changes made to this map
@@ -365,17 +400,7 @@ public class MapSplit {
                 int tx = nmap.tileX(tile);
                 int ty = nmap.tileY(tile);
                 int neighbour = nmap.neighbour(tile);
-
-                modifiedTiles.set(tx << 13 | ty);
-                if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-                    modifiedTiles.set((tx + 1) << 13 | ty);
-                }
-                if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-                    modifiedTiles.set(tx << 13 | (ty + 1));
-                }
-                if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-                    modifiedTiles.set((tx + 1) << 13 | (ty + 1));
-                }
+                setModifiedTiles(tx, ty, neighbour);
             }
 
             tileList.add(tile);
@@ -450,17 +475,7 @@ public class MapSplit {
                     int tx = nmap.tileX(tile);
                     int ty = nmap.tileY(tile);
                     int neighbour = nmap.neighbour(tile);
-
-                    modifiedTiles.set(tx << 13 | ty);
-                    if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-                        modifiedTiles.set((tx + 1) << 13 | ty);
-                    }
-                    if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-                        modifiedTiles.set(tx << 13 | (ty + 1));
-                    }
-                    if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-                        modifiedTiles.set((tx + 1) << 13 | (ty + 1));
-                    }
+                    setModifiedTiles(tx, ty, neighbour);
                 }
 
                 tileList.add(tile);
@@ -485,7 +500,7 @@ public class MapSplit {
 
                 // TODO: make this a bit more generic / nicer code :/
                 for (int i : list) {
-                    tileList.add(((long) i) << 38);
+                    tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
                 }
                 break;
 
@@ -506,7 +521,7 @@ public class MapSplit {
                     }
                 }
                 for (int i : list) {
-                    tileList.add(((long) i) << 38);
+                    tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
                 }
                 break;
             }
@@ -812,8 +827,8 @@ public class MapSplit {
                 break;
             }
 
-            int tx = idx >> 13;
-            int ty = idx & 8191;
+            int tx = idx >> Const.ZOOM;
+            int ty = (int) (idx & Const.MAX_TILE_NUMBER);
 
             boolean in = isInside(tx, ty, inside, outside);
 
@@ -864,8 +879,8 @@ public class MapSplit {
 
                 if (outFiles.get(idx) == null) {
 
-                    int tileX = idx >> 13;
-                    int tileY = idx & 8191;
+                    int tileX = idx >> Const.ZOOM;
+                    int tileY = (int) (idx & Const.MAX_TILE_NUMBER);
 
                     OutputStream target = null;
                     if (mbTiles) {
@@ -1005,12 +1020,12 @@ public class MapSplit {
                 ser.flush();
                 ser.close();
                 if (mbTiles) {
-                    int tileX = entry.getKey() >> 13;
-                    int tileY = entry.getKey() & 8191;
+                    int tileX = entry.getKey() >> Const.ZOOM;
+                    int tileY = (int) (entry.getKey() & Const.MAX_TILE_NUMBER);
                     int y = YMAX - tileY - 1; // TMS scheme
                     ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
                     try {
-                        w.addTile(blob.toByteArray(), 13, tileX, y);
+                        w.addTile(blob.toByteArray(), Const.ZOOM, tileX, y);
                     } catch (MBTilesWriteException e) {
                         throw new IOException(e);
                     }
@@ -1024,7 +1039,7 @@ public class MapSplit {
                     File file = new File(basename);
                     ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion("0.2.0")
                             .setAttribution("OpenStreetMap Contributors ODbL 1.0").addCustomKeyValue("format", "application/vnd.openstreetmap.data+pbf")
-                            .addCustomKeyValue("minzoom", Integer.toString(ZOOM)).addCustomKeyValue("maxzoom", Integer.toString(ZOOM));
+                            .addCustomKeyValue("minzoom", Integer.toString(Const.ZOOM)).addCustomKeyValue("maxzoom", Integer.toString(Const.ZOOM));
                     Bound bounds = sink.getBounds();
                     if (bounds != null) {
                         ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
@@ -1058,8 +1073,8 @@ public class MapSplit {
      * @param border
      * @param appointmentDate
      * @param metadata
-     * @param verbose
-     * @param timing
+     * @param verbose verbose output
+     * @param timing output timing infomation
      * @param completeRelations
      * @param mbTiles
      * @return
