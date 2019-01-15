@@ -1,11 +1,10 @@
 
 public class Const {
     /*
-     * the zoom-level at which we render our tiles Attention: Code is not generic enough to change this value without
-     * further code changes! ;)
+     * the maximum zoom-level, this limited currently by the fact that we pack the tile numbers in to one 32bit int  
      */
-    static final int ZOOM = 13;
+    static final int MAX_ZOOM = 16;
      
     // used on values
-    static final long MAX_TILE_NUMBER  = (long) Math.pow(2, ZOOM) - 1;
+    static final long MAX_TILE_NUMBER  = (long) Math.pow(2, MAX_ZOOM) - 1;
 }

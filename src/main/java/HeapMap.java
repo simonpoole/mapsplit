@@ -26,40 +26,18 @@ public class HeapMap implements OsmMap {
     private static final int  BUCKET_FULL_SHIFT = 63;
     private static final long BUCKET_FULL_MASK  = 1l << BUCKET_FULL_SHIFT;
     private static final long KEY_MASK          = ~BUCKET_FULL_MASK;
-    
-    /* Value encoding
-    
-    6              5               3 3 3
-    3              1               8 6 5
-    XXXX XXXX XXXX XYYY YYYY YYYY YYNN Ennn nnnn nnnn nnnn nnnn nnnn nnnn nnnn nnnn
 
-    X - tile number
-    Y - tile number
-    N - bits indicating immediate "neigbours"
-    E - extended "neighbour" list used
-    n - bits for "short" neighbour index
+    // see HEAPMAP.md for details
+    static final int          TILE_X_SHIFT = 48;
+    static final int          TILE_Y_SHIFT = 32;
+    private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
+    private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    Tiles indexed in "short" list (T original tile)
-      -- 
-      210123
-    -2xxxxxx
-    -1xxxxxx
-     0xxTxxx
-     1xxxxxx
-     2xxxxxx
-     3xxxxxx
-     
-     */
-    static final int  TILE_X_SHIFT     = 51;
-    static final int  TILE_Y_SHIFT     = 38;
-    static final long TILE_X_MASK      = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
-    static final long TILE_Y_MASK      = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
-
-    static final int  NEIGHBOUR_SHIFT  = TILE_Y_SHIFT - 2;
-    static final long NEIGHBOUR_MASK   = 3l << NEIGHBOUR_SHIFT;
-    static final int  TILE_EXT_SHIFT   = TILE_Y_SHIFT -3;
-    static final long TILE_EXT_MASK    = 1l << TILE_EXT_SHIFT;
-    static final long TILE_MARKER_MASK = 0x7FFFFFFFFl;
+    private static final int  TILE_EXT_SHIFT   = 24;
+    private static final long TILE_EXT_MASK    = 1l << TILE_EXT_SHIFT;
+    private static final long TILE_MARKER_MASK = 0xFFFFFFl;
+    private static final int  NEIGHBOUR_SHIFT  = TILE_EXT_SHIFT + 1;
+    private static final long NEIGHBOUR_MASK   = 3l << NEIGHBOUR_SHIFT;
 
     private int    size;
     private long[] keys;
@@ -223,15 +201,15 @@ public class HeapMap implements OsmMap {
             int ty = tileY(l);
             int neighbour = neighbour(l);
 
-            set[pos++] = tx << 13 | ty;
+            set[pos++] = tx << Const.MAX_ZOOM | ty;
             if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                set[pos++] = (tx + 1) << 13 | ty;
+                set[pos++] = (tx + 1) << Const.MAX_ZOOM | ty;
             }
             if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                set[pos++] = tx << 13 | (ty + 1);
+                set[pos++] = tx << Const.MAX_ZOOM | (ty + 1);
             }
             if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                set[pos++] = (tx + 1) << 13 | (ty + 1);
+                set[pos++] = (tx + 1) << Const.MAX_ZOOM | (ty + 1);
             }
         }
 
@@ -240,15 +218,13 @@ public class HeapMap implements OsmMap {
     }
 
     private void extendToNeighbourSet(int bucket, Collection<Long> tiles) {
-
         long val = values[bucket];
 
         if ((val & TILE_MARKER_MASK) != 0) {
-
             // add current stuff to tiles list
             List<Integer> tmpList = parseMarker(val);
             for (int i : tmpList) {
-                long tx = i >> Const.ZOOM;
+                long tx = i >>> Const.MAX_ZOOM;
                 long ty = i & Const.MAX_TILE_NUMBER;
                 long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
 
@@ -263,6 +239,9 @@ public class HeapMap implements OsmMap {
 
         // if we don't have enough sets, increase the array...
         if (cur >= extendedSet.length) {
+            if (extendedSet.length >= TILE_MARKER_MASK / 2) { // assumes TILE_MARKER_MASK starts at 0
+                throw new IllegalStateException("Too many extended tile entries to expand");
+            }
             int[][] tmp = new int[2 * extendedSet.length][];
             System.arraycopy(extendedSet, 0, tmp, 0, extendedSet.length);
             extendedSet = tmp;
@@ -295,10 +274,8 @@ public class HeapMap implements OsmMap {
 
         // neighbour list is already too large so we use the "large store"
         if ((val & TILE_EXT_MASK) != 0) {
-
             int idx = (int) (val & TILE_MARKER_MASK);
             appendNeighbours(idx, tiles);
-
             return;
         }
 
@@ -322,7 +299,7 @@ public class HeapMap implements OsmMap {
             }
         }
 
-        // now we use the 35 reserved bits for the tiles list..
+        // now we use the 24 reserved bits for the tiles list..
         boolean extend = false;
         for (long tile : expanded) {
 
@@ -336,12 +313,12 @@ public class HeapMap implements OsmMap {
             int dx = tmpX - tx + 2;
             int dy = tmpY - ty + 2;
 
-            int idx = dy * 6 + dx;
-            if (idx >= 14) {
+            int idx = dy * 5 + dx;
+            if (idx >= 12) {
                 idx--;
             }
 
-            if (dx < 0 || dy < 0 || dx > 5 || dy > 5) {
+            if (dx < 0 || dy < 0 || dx > 4 || dy > 4) {
                 // .. damn, not enough space for "small store"
                 // -> use "large store" instead
                 extend = true;
@@ -363,18 +340,18 @@ public class HeapMap implements OsmMap {
         int tx = tileX(value);
         int ty = tileY(value);
 
-        for (int i = 0; i < 35; i++) {
+        for (int i = 0; i < 24; i++) {
             // if bit is not set, continue..
             if (((value >> i) & 1) == 0) {
                 continue;
             }
 
-            int v = i >= 14 ? i + 1 : i;
+            int v = i >= 12 ? i + 1 : i;
 
-            int tmpX = v % 6 - 2;
-            int tmpY = v / 6 - 2;
+            int tmpX = v % 5 - 2;
+            int tmpY = v / 5 - 2;
 
-            result.add((tx + tmpX) << 13 | (ty + tmpY));
+            result.add((tx + tmpX) << Const.MAX_ZOOM | (ty + tmpY));
         }
         return result;
     }
@@ -426,12 +403,12 @@ public class HeapMap implements OsmMap {
         // TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
 
         // add the tile (and possible neighbours)
-        result.add(tx << Const.ZOOM | ty);
+        result.add(tx << Const.MAX_ZOOM | ty);
         if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-            result.add((tx + 1) << Const.ZOOM | ty);
+            result.add((tx + 1) << Const.MAX_ZOOM | ty);
         }
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-            result.add(tx << Const.ZOOM | (ty + 1));
+            result.add(tx << Const.MAX_ZOOM | (ty + 1));
         }
 
         return result;
