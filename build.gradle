@@ -1,6 +1,8 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
+version = '0.2.0'
+
 repositories {
     jcenter()
     mavenCentral()
@@ -15,13 +17,14 @@ repositories {
 task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'mapsplit fat jar',
-            'Implementation-Version': '0.0',
+            'Implementation-Version': "${project.version}",
             'Main-Class': 'MapSplit'
     }
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
+fatJar.group = 'build'
 
 dependencies {
     compile 'org.openstreetmap.osmosis:osmosis-core:0.47'
