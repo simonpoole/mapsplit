@@ -11,7 +11,8 @@ tiles that have changes in them are stored afterwards.
 The current implementation keeps everything that's needed in main memory. With 4GB of main memory you can parse maps with up to 100
 million nodes, however, memory usage also depends on the number of tiles that got changed.
 
-The maximum zoom levels tiles can be produced at is 16 as x and y tile numbers are packed in a 32 bit integer during processing.
+The maximum zoom levels tiles can be produced at is 16 as x and y tile numbers are packed in a 32 bit integer during processing. 
+Tiling large areas at zoom level 16 will create large numbers of tiles and should only be used with the optimization pass enabled. 
 
 The incremental update feature likely doesn't really work and should be replaced by something else.
 
@@ -27,6 +28,8 @@ See COPYING.
     -d,--date <arg>       file containing the date since when tiles are being
                           considered to have changed after the split the
                           latest change in infile is going to be stored in file
+    -e,--optimize <arg>   try to merge tiles with less that <arg> nodes to larger
+                          tiles (2'000 might be a good value for this) 
     -f,--maxfiles <arg>   maximum number of open files at a time
     -h,--help             this help
     -i,--input <arg>      a file in OSM pbf format

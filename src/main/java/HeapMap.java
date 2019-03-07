@@ -50,7 +50,7 @@ public class HeapMap implements OsmMap {
     private long misses = 0;
 
     /**
-     * COnstruct a new map
+     * Construct a new map
      * 
      * @param size the (fixed) size of the map
      */
