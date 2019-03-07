@@ -5,6 +5,10 @@ repositories {
     jcenter()
     mavenCentral()
     maven { url 'http://nexus.onebusaway.org/nexus/content/repositories/public/' }
+    maven { url 'https://dl.bintray.com/content/simonpoole/div' }
+//    flatDir {
+//        dirs 'lib'
+//    }
 }
 
 //create a single Jar with all dependencies
@@ -24,7 +28,7 @@ dependencies {
     compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
     compile 'com.google.protobuf:protobuf-java:3.6.1'
     compile 'commons-cli:commons-cli:1.4'
-    compile 'org.imintel:mbtiles4j:1.0.6'
+    compile 'org.imintel:mbtiles4j:1.1.0'
     compile 'org.jetbrains:annotations:15.0'
     compile 'com.zaxxer:SparseBitSet:1.1'
 }

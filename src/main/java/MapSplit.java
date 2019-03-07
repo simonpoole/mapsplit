@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.sql.SQLException;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -324,10 +325,10 @@ public class MapSplit {
     }
 
     /**
-     * calculate the lon-offset for the given border size 
-     *  
+     * calculate the lon-offset for the given border size
+     * 
      * @param lon the longitude
-     * @return the offset 
+     * @return the offset
      */
     private double deltaX(double lon) {
         int tx = lon2tileX(lon);
@@ -339,10 +340,10 @@ public class MapSplit {
     }
 
     /**
-     * calculate the lat-offset for the given border size 
-     *  
+     * calculate the lat-offset for the given border size
+     * 
      * @param lat the latitude
-     * @return the offset 
+     * @return the offset
      */
     private double deltaY(double lat) {
         int ty = lat2tileY(lat);
@@ -795,7 +796,7 @@ public class MapSplit {
             if (!zoomMap.containsKey(key)) { // not mapped
                 if (value < nodeLimit) {
                     CountResult prevResult = null;
-                    for (int z = 1; z < 5; z++) {  
+                    for (int z = 1; z < 5; z++) {
                         int newZoom = zoom - z;
                         CountResult result = getCounts(key, z, stats);
                         if (result.total < 4 * nodeLimit) {
@@ -858,11 +859,11 @@ public class MapSplit {
         // determine the counts for the other tiles in the zoomed out tile
         int x0 = ((idx >>> Const.MAX_ZOOM) >> zoomDiff) << zoomDiff;
         int y0 = ((idx & (int) Const.MAX_TILE_NUMBER) >> zoomDiff) << zoomDiff;
-        int side = 2 << (zoomDiff-1);
+        int side = 2 << (zoomDiff - 1);
         int[] keys = new int[side * side];
         for (int i = 0; i < side; i++) {
             for (int j = 0; j < side; j++) {
-                keys[i*side + j] = ((x0 + i) << Const.MAX_ZOOM) | (y0 + j);
+                keys[i * side + j] = ((x0 + i) << Const.MAX_ZOOM) | (y0 + j);
             }
         }
         Integer[] counts = new Integer[keys.length];
@@ -1040,7 +1041,8 @@ public class MapSplit {
         if (mbTiles) {
             try {
                 w = new MBTilesWriter(new File(basename));
-            } catch (MBTilesWriteException e1) {
+                w.getConnection().setAutoCommit(false);
+            } catch (MBTilesWriteException | SQLException e1) {
                 throw new IOException(e1);
             }
         }
@@ -1130,8 +1132,8 @@ public class MapSplit {
 
                 class BoundSink implements Sink {
 
-                    Bound overallBounds = null;
-                    Set<Integer>mappedTiles = new HashSet<>();
+                    Bound        overallBounds = null;
+                    Set<Integer> mappedTiles   = new HashSet<>();
 
                     /**
                      * Get the overall bounds of the data
@@ -1179,7 +1181,7 @@ public class MapSplit {
                             // This probably is a degenerated relation ;)
                             return;
                         }
-                        
+
                         mappedTiles.clear();
                         for (int i : tiles) {
                             // map original zoom tiles to optimized ones
@@ -1252,6 +1254,7 @@ public class MapSplit {
                         }
                     }
                 }
+
                 if (verbose) {
                     System.out.println("Wrote " + outFiles.size() + " tiles, continuing with next block of tiles");
                 }
@@ -1282,7 +1285,8 @@ public class MapSplit {
             }
             try {
                 w.addMetadataEntry(ent);
-            } catch (MBTilesWriteException e) {
+                w.getConnection().commit();
+            } catch (MBTilesWriteException | SQLException e) {
                 throw new IOException(e);
             }
             w.close();
