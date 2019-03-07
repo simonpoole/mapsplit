@@ -49,6 +49,11 @@ public class HeapMap implements OsmMap {
     private long hits   = 0;
     private long misses = 0;
 
+    /**
+     * COnstruct a new map
+     * 
+     * @param size the (fixed) size of the map
+     */
     public HeapMap(int size) {
         this.size = size;
         keys = new long[size];
@@ -438,5 +443,16 @@ public class HeapMap implements OsmMap {
     @Override
     public double getMissHitRatio() {
         return ((double) misses) / ((double) hits);
+    }
+
+    @Override
+    public List<Long> keys() {
+        List<Long>result = new ArrayList<>();
+        for (int i=0;i<keys.length;i++) {
+            if (values[i]!=0) {
+                result.add(keys[i] & KEY_MASK);
+            }
+        }
+        return result;
     }
 }

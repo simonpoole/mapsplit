@@ -58,7 +58,7 @@ public interface OsmMap {
 
     /**
      * returns a list of all tiles this key is in. This contains the base-tile, neighbours and tiles where this key is
-     * connected to other keys, e.g. by a way. The format of the integer is (tileX << 13 | tileY).
+     * connected to other keys, e.g. by a way. The format of the integer is (tileX << 16 | tileY).
      * 
      * @param key the node, way or relation we're looking at
      * @return a list of all tiles where this key is used
@@ -111,4 +111,11 @@ public interface OsmMap {
      * @return the size of this map
      */
     public int getSize();
+    
+    /**
+     * Return all the keys
+     * 
+     * @return a List holding all the keys from the map
+     */
+    public List<Long> keys();
 }

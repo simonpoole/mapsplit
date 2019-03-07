@@ -25,8 +25,10 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -70,7 +72,6 @@ public class MapSplit {
     private static final String PBF_EXT = ".pbf";
 
     private final int zoom;
-    private final int ymax; // 1 << zoom // TMS scheme
 
     /*
      * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
@@ -100,29 +101,35 @@ public class MapSplit {
     private boolean verbose = false;
 
     // the hashmap for all nodes in the osm map
-    private OsmMap nmap;
+    private final OsmMap nmap;
 
     // the hashmap for all ways in the osm map
-    private OsmMap wmap;
+    private final OsmMap wmap;
 
     // the hashmap for all relations in the osm map
-    private OsmMap rmap;
+    private final OsmMap rmap;
 
     // a map of ways that need to be added in a second run
     private HashMap<Long, Collection<Long>> extraWayMap = null;
 
-    // a bitset telling the algorithm which tiles need to be rerendered
-    private BitSet modifiedTiles = new BitSet();
+    // a bitset telling the algorithm which tiles need to be re-renderd
+    private final UnsignedSparseBitSet modifiedTiles = new UnsignedSparseBitSet();
+
+    private final Map<Integer, UnsignedSparseBitSet> optimizedModifiedTiles = new HashMap<>();
 
     // the serializer (OSM writers) for any modified tile
     private Map<Integer, OsmosisSerializer> outFiles;
 
+    // output for mbtiles
     private Map<Integer, ByteArrayOutputStream> outBlobs;
+
+    // new zoom levels for tiles during optimization
+    private final Map<Integer, Byte> zoomMap = new HashMap<>();;
 
     /**
      * Construct a new MapSplit instance
      * 
-     * @param zoom zoom level to generate tiles for
+     * @param zoom maximum zoom level to generate tiles for
      * @param appointmentDate only add changes from after this date (doesn't really work)
      * @param mapSizes sizes of the maps for OSM objects
      * @param maxFiles maximum number of files/tiles to keep open at the same time
@@ -133,7 +140,6 @@ public class MapSplit {
      */
     public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations) {
         this.zoom = zoom;
-        this.ymax = 1 << zoom;
         this.border = border;
         this.input = inputFile;
         this.appointmentDate = appointmentDate;
@@ -144,6 +150,8 @@ public class MapSplit {
         if (completeRelations) {
             extraWayMap = new HashMap<Long, Collection<Long>>();
         }
+
+        optimizedModifiedTiles.put(zoom, modifiedTiles);
     }
 
     /**
@@ -213,7 +221,11 @@ public class MapSplit {
         return new Bound(r, l, t, b, "mapsplit");
     }
 
-    private void checkAndFill(Collection<Long> tiles) {
+    /**
+     * 
+     * @param tiles
+     */
+    private void checkAndFill(@NotNull Collection<Long> tiles) {
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
 
@@ -311,7 +323,12 @@ public class MapSplit {
         }
     }
 
-    /* calculate the lon-offset for the given border size */
+    /**
+     * calculate the lon-offset for the given border size 
+     *  
+     * @param lon the longitude
+     * @return the offset 
+     */
     private double deltaX(double lon) {
         int tx = lon2tileX(lon);
 
@@ -321,7 +338,12 @@ public class MapSplit {
         return border * (x2 - x1);
     }
 
-    /* calculate the lat-offset for the given border size */
+    /**
+     * calculate the lat-offset for the given border size 
+     *  
+     * @param lat the latitude
+     * @return the offset 
+     */
     private double deltaY(double lat) {
         int ty = lat2tileY(lat);
 
@@ -351,6 +373,13 @@ public class MapSplit {
         }
     }
 
+    /**
+     * Add a Node
+     * 
+     * @param n the Node
+     * @param lat latitude in WGS84 coords
+     * @param lon longitude in WGS84 coords
+     */
     private void addNodeToMap(Node n, double lat, double lon) {
         int tileX = lon2tileX(lon);
         int tileY = lat2tileY(lat);
@@ -385,7 +414,12 @@ public class MapSplit {
         nmap.put(n.getId(), tileX, tileY, neighbour);
     }
 
-    private void addWayToMap(Way way) {
+    /**
+     * Add a Way
+     * 
+     * @param way the Way
+     */
+    private void addWayToMap(@NotNull Way way) {
 
         boolean modified = way.getTimestamp().after(appointmentDate);
         Set<Long> tileList = new TreeSet<Long>();
@@ -440,7 +474,6 @@ public class MapSplit {
         wmap.update(way.getId(), tileList);
 
         for (WayNode wayNode : way.getWayNodes()) {
-
             // update map so that the node knows about any additional
             // tile it has to be stored in
             nmap.update(wayNode.getNodeId(), tileList);
@@ -463,6 +496,11 @@ public class MapSplit {
         }
     }
 
+    /**
+     * Add a Relation
+     * 
+     * @param r the Relation
+     */
     private void addRelationToMap(@NotNull Relation r) {
 
         boolean modified = r.getTimestamp().after(appointmentDate);
@@ -716,13 +754,151 @@ public class MapSplit {
         }
     }
 
+    /**
+     * Optimize the tile stack
+     * 
+     * @param nodeLimit the minimum number of Nodes a tile should contain
+     * 
+     */
+    private void optimize(final int nodeLimit) {
+        if (verbose) {
+            System.out.println("Optimizing ...");
+        }
+        long statsStart = System.currentTimeMillis();
+        // count Node tile use
+        // at high zoom levels this will contains
+        // lots of Nodes that are in more than
+        // one tile
+        Map<Integer, Integer> stats = new HashMap<>();
+        for (long k : nmap.keys()) {
+            List<Integer> tiles = nmap.getAllTiles(k);
+            if (tiles != null) {
+                for (Integer t : tiles) {
+                    Integer count = stats.get(t);
+                    if (count != null) {
+                        count++;
+                        stats.put(t, count);
+                    } else {
+                        stats.put(t, 1);
+                    }
+                }
+            } else {
+                System.out.println("tiles null for " + k);
+            }
+        }
+        long nodeCount = 0;
+        List<Integer> keys = new ArrayList<Integer>(stats.keySet());
+        Collections.sort(keys);
+        for (Integer key : keys) {
+            int value = stats.get(key);
+            nodeCount += value;
+            if (!zoomMap.containsKey(key)) { // not mapped
+                if (value < nodeLimit) {
+                    CountResult prevResult = null;
+                    for (int z = 1; z < 5; z++) {  
+                        int newZoom = zoom - z;
+                        CountResult result = getCounts(key, z, stats);
+                        if (result.total < 4 * nodeLimit) {
+                            if (result.total > nodeLimit) {
+                                for (int i = 0; i < result.keys.length; i++) {
+                                    if (result.counts[i] != null) {
+                                        zoomMap.put(result.keys[i], (byte) newZoom);
+                                    }
+                                }
+                                break; // found optimal size
+                            }
+                            prevResult = result; // store this and try next zoom
+                        } else {
+                            if (prevResult != null) {
+                                for (int i = 0; i < prevResult.keys.length; i++) {
+                                    if (prevResult.counts[i] != null) {
+                                        zoomMap.put(prevResult.keys[i], (byte) (newZoom + 1));
+                                    }
+                                }
+                            }
+                            break; // last iteration was better
+                        }
+                    }
+                }
+            }
+        }
+        for (Entry<Integer, Byte> optimzedTile : zoomMap.entrySet()) {
+            int idx = optimzedTile.getKey();
+            int newTileZoom = optimzedTile.getValue();
+            modifiedTiles.clear(idx);
+            idx = mapToNewTile(idx, newTileZoom);
+            UnsignedSparseBitSet tileSet = optimizedModifiedTiles.get(newTileZoom);
+            if (tileSet == null) {
+                tileSet = new UnsignedSparseBitSet();
+                optimizedModifiedTiles.put(newTileZoom, tileSet);
+            }
+            tileSet.set(idx);
+        }
+        if (verbose) {
+            System.out.println("Tiles " + stats.size() + " avg node count " + (nodeCount / stats.size()) + " merged tiles " + zoomMap.size());
+            System.out.println("Stats took " + (System.currentTimeMillis() - statsStart) / 1000 + " s");
+        }
+    }
+
+    class CountResult {
+        int       total;
+        int[]     keys;
+        Integer[] counts;
+    }
+
+    /**
+     * Get usage stats for zoomed out tiles
+     * 
+     * @param idx the original tile index
+     * @param zoomDiff how many levels to zoom out
+     * @param stats a map containing the per tile stats
+     * @return a CountResult object
+     */
+    CountResult getCounts(int idx, int zoomDiff, @NotNull Map<Integer, Integer> stats) {
+        // determine the counts for the other tiles in the zoomed out tile
+        int x0 = ((idx >>> Const.MAX_ZOOM) >> zoomDiff) << zoomDiff;
+        int y0 = ((idx & (int) Const.MAX_TILE_NUMBER) >> zoomDiff) << zoomDiff;
+        int side = 2 << (zoomDiff-1);
+        int[] keys = new int[side * side];
+        for (int i = 0; i < side; i++) {
+            for (int j = 0; j < side; j++) {
+                keys[i*side + j] = ((x0 + i) << Const.MAX_ZOOM) | (y0 + j);
+            }
+        }
+        Integer[] counts = new Integer[keys.length];
+        int total = 0;
+        for (int i = 0; i < keys.length; i++) {
+            counts[i] = stats.get(keys[i]);
+            if (counts[i] != null) {
+                total += counts[i];
+            }
+        }
+        CountResult result = new CountResult();
+        result.total = total;
+        result.keys = keys;
+        result.counts = counts;
+        return result;
+    }
+
+    /**
+     * Taking a packed tile id, return the tile it is in on a lower zoom level
+     * 
+     * @param idx the packed tile id
+     * @param newTileZoom the new zoom level (less than the base zoom)
+     * @return packed tile id at newTileZoom
+     */
+    private int mapToNewTile(int idx, int newTileZoom) {
+        int xNew = (idx >>> Const.MAX_ZOOM) >> (zoom - newTileZoom);
+        int yNew = (idx & (int) Const.MAX_TILE_NUMBER) >> (zoom - newTileZoom);
+        return xNew << Const.MAX_ZOOM | yNew;
+    }
+
     private boolean isInside(double x, double y, double[] polygon) {
 
         boolean in = false;
         int lines = polygon.length / 2;
 
         for (int i = 0, j = lines - 1; i < lines; j = i++) {
-
             if (((polygon[2 * i + 1] > y) != (polygon[2 * j + 1] > y))
                     && (x < (polygon[2 * j] - polygon[2 * i]) * (y - polygon[2 * i + 1]) / (polygon[2 * j + 1] - polygon[2 * i + 1]) + polygon[2 * i])) {
                 in = !in;
@@ -769,65 +945,71 @@ public class MapSplit {
         return true;
     }
 
-    public void clipPoly(String polygonFile) throws IOException {
+    /**
+     * Remove all tiles that are not in the provided polygon
+     * 
+     * @param polygonFile the path for a file containing the polygon
+     * @throws IOException if reading fails
+     */
+    public void clipPoly(@NotNull String polygonFile) throws IOException {
 
         List<double[]> inside = new ArrayList<double[]>();
         List<double[]> outside = new ArrayList<double[]>();
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(polygonFile)));
-        /* String name = */ br.readLine(); // unused..
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(polygonFile)));) {
+            /* String name = */ br.readLine(); // unused..
 
-        String poly = br.readLine();
-        while (!"END".equals(poly)) {
+            String poly = br.readLine();
+            while (!"END".equals(poly)) {
 
-            int pos = 0;
-            int size = 128;
-            double[] data = new double[2 * size];
+                int pos = 0;
+                int size = 128;
+                double[] data = new double[2 * size];
 
-            String coords = br.readLine();
-            while (!"END".equals(coords)) {
+                String coords = br.readLine();
+                while (!"END".equals(coords)) {
 
-                coords = coords.trim();
-                int idx = coords.indexOf(" ");
-                double lon = Double.parseDouble(coords.substring(0, idx));
-                double lat = Double.parseDouble(coords.substring(idx + 1));
+                    coords = coords.trim();
+                    int idx = coords.indexOf(" ");
+                    double lon = Double.parseDouble(coords.substring(0, idx));
+                    double lat = Double.parseDouble(coords.substring(idx + 1));
 
-                // check if there's enough space to store
-                if (pos >= size) {
-                    double[] tmp = new double[4 * size];
-                    System.arraycopy(data, 0, tmp, 0, 2 * size);
-                    size *= 2;
+                    // check if there's enough space to store
+                    if (pos >= size) {
+                        double[] tmp = new double[4 * size];
+                        System.arraycopy(data, 0, tmp, 0, 2 * size);
+                        size *= 2;
+                        data = tmp;
+                    }
+
+                    // store data
+                    data[2 * pos] = lon;
+                    data[2 * pos + 1] = lat;
+                    pos++;
+
+                    coords = br.readLine();
+                }
+
+                if (pos != size) {
+                    double[] tmp = new double[2 * pos];
+                    System.arraycopy(data, 0, tmp, 0, 2 * pos);
                     data = tmp;
                 }
 
-                // store data
-                data[2 * pos] = lon;
-                data[2 * pos + 1] = lat;
-                pos++;
+                if (poly.startsWith("!")) {
+                    outside.add(data);
+                } else {
+                    inside.add(data);
+                }
 
-                coords = br.readLine();
+                // read next polygon, if there's any
+                poly = br.readLine();
             }
-
-            if (pos != size) {
-                double[] tmp = new double[2 * pos];
-                System.arraycopy(data, 0, tmp, 0, 2 * pos);
-                data = tmp;
-            }
-
-            if (poly.startsWith("!")) {
-                outside.add(data);
-            } else {
-                inside.add(data);
-            }
-
-            // read next polygon, if there's any
-            poly = br.readLine();
         }
-
         // now walk modifiedTiles and clear bits that are not inside polygon
         int idx = 0;
         while (true) {
-            idx = modifiedTiles.nextSetBit(idx + 1);
+            idx = modifiedTiles.nextSetBit(UnsignedSparseBitSet.inc(idx));
             if (idx == -1) {
                 break;
             }
@@ -854,7 +1036,6 @@ public class MapSplit {
      */
     public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException {
 
-        int idx = 0;
         MBTilesWriter w = null;
         if (mbTiles) {
             try {
@@ -863,207 +1044,248 @@ public class MapSplit {
                 throw new IOException(e1);
             }
         }
-
-        // We might call this code several times if we have more tiles
-        // to store than open files allowed
-        while (true) {
-
-            complete = false;
-            outFiles = new HashMap<Integer, OsmosisSerializer>();
-            if (mbTiles) {
-                outBlobs = new HashMap<Integer, ByteArrayOutputStream>();
+        Bound bounds = null;
+        int minZoom = zoom;
+        for (Entry<Integer, UnsignedSparseBitSet> omt : optimizedModifiedTiles.entrySet()) {
+            UnsignedSparseBitSet tileSet = omt.getValue();
+            int currentZoom = omt.getKey();
+            if (currentZoom < minZoom) {
+                minZoom = currentZoom;
             }
-
-            // Setup out-files...
-            int count = 0;
-            while (true) {
-                idx = modifiedTiles.nextSetBit(idx + 1);
-                if (idx == -1) {
-                    break;
-                }
-
-                if (outFiles.get(idx) == null) {
-
-                    int tileX = idx >>> Const.MAX_ZOOM;
-                    int tileY = (int) (idx & Const.MAX_TILE_NUMBER);
-
-                    OutputStream target = null;
-                    if (mbTiles) {
-                        target = new ByteArrayOutputStream();
-                    } else {
-                        String file;
-                        if (basename.contains("%x") && basename.contains("%y")) {
-                            file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY));
-                            if (!file.endsWith(PBF_EXT)) {
-                                file = file + PBF_EXT;
-                            }
-                        } else {
-                            file = basename + tileX + "_" + tileY + PBF_EXT;
-                        }
-                        target = new FileOutputStream(file);
-                    }
-
-                    OsmosisSerializer serializer = new OsmosisSerializer(new BlockOutputStream(target));
-
-                    serializer.setUseDense(true);
-                    serializer.configOmit(!metadata);
-
-                    // write out the bound for that tile
-                    Bound bound = getBound(tileX, tileY);
-                    BoundContainer bc = new BoundContainer(bound);
-                    serializer.process(bc);
-
-                    outFiles.put(idx, serializer);
-
-                    if (mbTiles) {
-                        outBlobs.put(idx, (ByteArrayOutputStream) target);
-                    }
-                }
-
-                if ((maxFiles != -1) && (++count >= maxFiles)) {
-                    break;
-                }
-            }
-
-            // Now start writing output...
-
-            RunnableSource reader = new OsmosisReader(new FileInputStream(input));
-
-            class BoundSink implements Sink {
-
-                Bound overallBounds = null;
-
-                /**
-                 * Get the overall bounds of the data
-                 * 
-                 * @return a Bound object or null
-                 */
-                Bound getBounds() {
-                    return overallBounds;
-                }
-
-                @Override
-                public void complete() {
-                    complete = true;
-                }
-
-                @Override
-                public void process(EntityContainer ec) {
-                    long id = ec.getEntity().getId();
-
-                    List<Integer> tiles;
-
-                    if (ec instanceof NodeContainer) {
-                        tiles = nmap.getAllTiles(id);
-                    } else if (ec instanceof WayContainer) {
-                        tiles = wmap.getAllTiles(id);
-                    } else if (ec instanceof RelationContainer) {
-                        tiles = rmap.getAllTiles(id);
-                    } else if (ec instanceof BoundContainer) {
-                        Bound bounds = ((BoundContainer) ec).getEntity();
-                        if (overallBounds == null) {
-                            overallBounds = bounds;
-                        } else {
-                            overallBounds.union(bounds);
-                        }
-                        return;
-                    } else {
-                        System.err.println("Unknown Element while reading");
-                        System.err.println(ec.toString());
-                        System.err.println(ec.getEntity().toString());
-                        return;
-                    }
-
-                    if (tiles == null) {
-                        // No tile where we could store the given entity into
-                        // This probably is a degenerated relation ;)
-                        return;
-                    }
-
-                    for (int i : tiles) {
-                        if (modifiedTiles.get(i)) {
-                            OsmosisSerializer ser = outFiles.get(i);
-                            if (ser != null) {
-                                ser.process(ec);
-                            }
-                        }
-                    }
-                }
-
-                @Override
-                public void initialize(Map<String, Object> metaData) {
-                    // do nothing
-                }
-
-                @Override
-                public void close() {
-                    // do nothing
-                }
-            }
-            ;
-            BoundSink sink = new BoundSink();
-            reader.setSink(sink);
-
-            Thread readerThread = new Thread(reader);
-            readerThread.start();
-            while (readerThread.isAlive()) {
-                try {
-                    readerThread.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            if (!complete) {
-                throw new IOException("Could not fully read file in storing run");
-            }
-
-            // Finish and close files...
-            for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
-                OsmosisSerializer ser = entry.getValue();
-                ser.complete();
-                ser.flush();
-                ser.close();
-                if (mbTiles) {
-                    int tileX = entry.getKey() >>> Const.MAX_ZOOM;
-                    int tileY = (int) (entry.getKey() & Const.MAX_TILE_NUMBER);
-                    int y = ymax - tileY - 1; // TMS scheme
-                    ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
-                    try {
-                        w.addTile(blob.toByteArray(), zoom, tileX, y);
-                    } catch (MBTilesWriteException e) {
-                        throw new IOException(e);
-                    }
-                }
-            }
-
-            if (idx == -1) {
-                // Add metadata parts
-                if (mbTiles) {
-                    MetadataEntry ent = new MetadataEntry();
-                    File file = new File(basename);
-                    ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion("0.2.0")
-                            .setAttribution("OpenStreetMap Contributors ODbL 1.0").addCustomKeyValue("format", "application/vnd.openstreetmap.data+pbf")
-                            .addCustomKeyValue("minzoom", Integer.toString(zoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom));
-                    Bound bounds = sink.getBounds();
-                    if (bounds != null) {
-                        ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
-                    } else {
-                        ent.setTilesetBounds(-180, -85, 180, 85);
-                    }
-                    try {
-                        w.addMetadataEntry(ent);
-                    } catch (MBTilesWriteException e) {
-                        throw new IOException(e);
-                    }
-                    w.close();
-                }
-                break;
-            }
-
+            int ymax = 1 << currentZoom; // for conversion to TMS schema
             if (verbose) {
-                System.out.println("Wrote " + maxFiles + " tiles, continuing with next block of tiles");
+                System.out.println("Processing " + tileSet.cardinality() + " tiles for zoom " + currentZoom);
             }
+
+            int idx = 0;
+            // We might call this code several times if we have more tiles
+            // to store than open files allowed
+            while (true) {
+
+                complete = false;
+                outFiles = new HashMap<Integer, OsmosisSerializer>();
+                if (mbTiles) {
+                    outBlobs = new HashMap<Integer, ByteArrayOutputStream>();
+                }
+
+                // Setup out-files...
+                int count = 0;
+                while (true) {
+                    idx = tileSet.nextSetBit(UnsignedSparseBitSet.inc(idx));
+                    if (idx == -1) {
+                        // created all tiles for this zoom level
+                        break;
+                    }
+
+                    if (outFiles.get(idx) == null) {
+
+                        int tileX = idx >>> Const.MAX_ZOOM;
+                        int tileY = (int) (idx & Const.MAX_TILE_NUMBER);
+
+                        OutputStream target = null;
+                        if (mbTiles) {
+                            target = new ByteArrayOutputStream();
+                        } else {
+                            String file;
+                            if (basename.contains("%x") && basename.contains("%y")) {
+                                file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY)).replace("%z",
+                                        Integer.toString(currentZoom));
+                                if (!file.endsWith(PBF_EXT)) {
+                                    file = file + PBF_EXT;
+                                }
+                            } else {
+                                file = basename + currentZoom + "/" + tileX + "_" + tileY + PBF_EXT;
+                            }
+                            File outputFile = new File(file);
+                            File parent = outputFile.getParentFile();
+                            parent.mkdirs();
+                            target = new FileOutputStream(file);
+                        }
+
+                        OsmosisSerializer serializer = new OsmosisSerializer(new BlockOutputStream(target));
+
+                        serializer.setUseDense(true);
+                        serializer.configOmit(!metadata);
+
+                        // write out the bound for that tile
+                        Bound bound = getBound(tileX, tileY);
+                        BoundContainer bc = new BoundContainer(bound);
+                        serializer.process(bc);
+
+                        outFiles.put(idx, serializer);
+
+                        if (mbTiles) {
+                            outBlobs.put(idx, (ByteArrayOutputStream) target);
+                        }
+                    }
+
+                    if ((maxFiles != -1) && (++count >= maxFiles)) {
+                        break;
+                    }
+                }
+
+                // Now start writing output...
+
+                RunnableSource reader = new OsmosisReader(new FileInputStream(input));
+
+                class BoundSink implements Sink {
+
+                    Bound overallBounds = null;
+                    Set<Integer>mappedTiles = new HashSet<>();
+
+                    /**
+                     * Get the overall bounds of the data
+                     * 
+                     * @return a Bound object or null
+                     */
+                    Bound getBounds() {
+                        return overallBounds;
+                    }
+
+                    @Override
+                    public void complete() {
+                        complete = true;
+                    }
+
+                    @Override
+                    public void process(EntityContainer ec) {
+                        long id = ec.getEntity().getId();
+
+                        List<Integer> tiles;
+
+                        if (ec instanceof NodeContainer) {
+                            tiles = nmap.getAllTiles(id);
+                        } else if (ec instanceof WayContainer) {
+                            tiles = wmap.getAllTiles(id);
+                        } else if (ec instanceof RelationContainer) {
+                            tiles = rmap.getAllTiles(id);
+                        } else if (ec instanceof BoundContainer) {
+                            Bound bounds = ((BoundContainer) ec).getEntity();
+                            if (overallBounds == null) {
+                                overallBounds = bounds;
+                            } else {
+                                overallBounds.union(bounds);
+                            }
+                            return;
+                        } else {
+                            System.err.println("Unknown Element while reading");
+                            System.err.println(ec.toString());
+                            System.err.println(ec.getEntity().toString());
+                            return;
+                        }
+
+                        if (tiles == null) {
+                            // No tile where we could store the given entity into
+                            // This probably is a degenerated relation ;)
+                            return;
+                        }
+                        
+                        mappedTiles.clear();
+                        for (int i : tiles) {
+                            // map original zoom tiles to optimized ones
+                            // and remove duplicates
+                            Byte newZoom = zoomMap.get(i);
+                            if (newZoom != null) {
+                                i = mapToNewTile(i, newZoom);
+                            } else {
+                                newZoom = (byte) zoom;
+                            }
+                            if (currentZoom == newZoom) {
+                                mappedTiles.add(i);
+                            }
+                        }
+
+                        for (int i : mappedTiles) {
+                            if (tileSet.get(i)) {
+                                OsmosisSerializer ser = outFiles.get(i);
+                                if (ser != null) {
+                                    ser.process(ec);
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void initialize(Map<String, Object> metaData) {
+                        // do nothing
+                    }
+
+                    @Override
+                    public void close() {
+                        // do nothing
+                    }
+                }
+
+                BoundSink sink = new BoundSink();
+                reader.setSink(sink);
+
+                Thread readerThread = new Thread(reader);
+                readerThread.start();
+                while (readerThread.isAlive()) {
+                    try {
+                        readerThread.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if (!complete) {
+                    throw new IOException("Could not fully read file in storing run");
+                }
+
+                // Finish and close files...
+                for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
+                    OsmosisSerializer ser = entry.getValue();
+                    ser.complete();
+                    ser.flush();
+                    ser.close();
+                    if (mbTiles) {
+                        int tileX = entry.getKey() >>> Const.MAX_ZOOM;
+                        int tileY = (int) (entry.getKey() & Const.MAX_TILE_NUMBER);
+                        int y = ymax - tileY - 1; // TMS scheme
+                        ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
+                        try {
+                            w.addTile(blob.toByteArray(), currentZoom, tileX, y);
+                        } catch (MBTilesWriteException e) {
+                            System.out.println("" + currentZoom + " x:" + tileX + " y:" + y);
+                            throw new IOException(e);
+                        }
+                    }
+                }
+                if (verbose) {
+                    System.out.println("Wrote " + outFiles.size() + " tiles, continuing with next block of tiles");
+                }
+                // remove mappings form this pass
+                outFiles.clear();
+                if (mbTiles) {
+                    outBlobs.clear();
+                }
+                if (idx == -1) {
+                    // written all tiles for this zoom level
+                    bounds = sink.getBounds();
+                    break;
+                }
+            }
+        }
+
+        // Add metadata parts
+        if (mbTiles) {
+            MetadataEntry ent = new MetadataEntry();
+            File file = new File(basename);
+            ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion("0.2.0")
+                    .setAttribution("OpenStreetMap Contributors ODbL 1.0").addCustomKeyValue("format", "application/vnd.openstreetmap.data+pbf")
+                    .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom));
+            if (bounds != null) {
+                ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
+            } else {
+                ent.setTilesetBounds(-180, -85, 180, 85);
+            }
+            try {
+                w.addMetadataEntry(ent);
+            } catch (MBTilesWriteException e) {
+                throw new IOException(e);
+            }
+            w.close();
         }
     }
 
@@ -1084,11 +1306,12 @@ public class MapSplit {
      * @param completeRelations include all relation member objects in every tile the relation is present in (very
      *            expensive)
      * @param mbTiles generate a MBTiles format SQLite file instead of individual tiles
+     * @param nodeLimit if > 0 optimize tiles so that they contain at least nodeLimit Nodes
      * @return the "last changed" date
      * @throws Exception
      */
     private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
-            double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles)
+            double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles, int nodeLimit)
             throws Exception {
 
         long startup = System.currentTimeMillis();
@@ -1110,7 +1333,7 @@ public class MapSplit {
             split.clipPoly(polygonFile);
         }
 
-        int modified = split.modifiedTiles.cardinality();
+        long modified = split.modifiedTiles.cardinality();
 
         if (timing) {
             System.out.println("Initial reading and datastructure setup took " + time + "ms");
@@ -1119,11 +1342,15 @@ public class MapSplit {
             System.out.println("We have " + modified + " modified tiles to store.");
         }
 
+        if (nodeLimit > 0) {
+            split.optimize(nodeLimit);
+        }
+
         time = System.currentTimeMillis();
         split.store(outputBase, metadata, verbose, mbTiles);
         time = System.currentTimeMillis() - time;
         if (timing) {
-            System.out.println("Saving " + modified + " tiles took " + time + "ms");
+            System.out.println("Saving tiles took " + time + "ms");
             long overall = System.currentTimeMillis() - startup;
             System.out.print("\nOverall runtime: " + overall + "ms");
             System.out.println(" == " + (overall / 1000 / 60) + "min");
@@ -1165,6 +1392,7 @@ public class MapSplit {
         int maxFiles = -1;
         double border = 0.0;
         int zoom = 13;
+        int nodeLimit = 0;
 
         // arguments
         Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();
@@ -1191,6 +1419,9 @@ public class MapSplit {
         Option zoomOption = Option.builder("z").longOpt("zoom").hasArg()
                 .desc("zoom level to create the tiles at must be between 0 and 16 (inclusive), default is 13").build();
 
+        Option optimizeOption = Option.builder("e").longOpt("optimize").hasArg()
+                .desc("optimize the tile stack, agrument is minimum number of Nodes a tile should contain, default is to not optimize").build();
+
         Options options = new Options();
 
         options.addOption(helpOption);
@@ -1207,6 +1438,7 @@ public class MapSplit {
         options.addOption(inputOption);
         options.addOption(outputOption);
         options.addOption(zoomOption);
+        options.addOption(optimizeOption);
 
         CommandLineParser parser = new DefaultParser();
         try {
@@ -1273,6 +1505,10 @@ public class MapSplit {
                 String tmp = line.getOptionValue("zoom");
                 zoom = Integer.valueOf(tmp);
             }
+            if (line.hasOption("e")) {
+                String tmp = line.getOptionValue("optimize");
+                nodeLimit = Integer.valueOf(tmp);
+            }
         } catch (ParseException | NumberFormatException exp) {
             HelpFormatter formatter = new HelpFormatter();
             formatter.printHelp("mapsplit", options);
@@ -1315,7 +1551,7 @@ public class MapSplit {
 
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations,
-                mbTiles);
+                mbTiles, nodeLimit);
 
         if (verbose) {
             System.out.println("Last changes to the map had been done on " + df.format(latest));
