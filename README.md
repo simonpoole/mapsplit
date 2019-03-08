@@ -47,7 +47,7 @@ See COPYING.
     -d,--date <arg>       file containing the date since when tiles are being
                           considered to have changed after the split the
                           latest change in infile is going to be stored in file
-    -e,--optimize <arg>   try to merge tiles with less that <arg> nodes to larger
+    -O,--optimize <arg>   try to merge tiles with less that <arg> nodes to larger
                           tiles (2'000 might be a good value for this) 
     -f,--maxfiles <arg>   maximum number of open files at a time
     -h,--help             this help
@@ -65,12 +65,12 @@ See COPYING.
                           IDs). If not supplied, defaults will be used.
     -t,--timing           output timing information
     -v,--verbose          verbose information during processing
-    -x,--mbtiles          store in a MBTiles format sqlite database
+    -M,--mbtiles          store in a MBTiles format sqlite database
     -z,--zoom <arg>       zoom level to create the tiles at must be between 0 (silly)
                           and 16 (inclusive), default is 13
 
 ### Example
 
-    java -Xmx6G -jar mapsplit-all-0.2.0.jar -xtvm -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -e 2000
+    java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvM -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -O 2000
 
  Will generate a 211MB large MBTile format MapSplit file with all the data for the Iraq in a couple of minutes.

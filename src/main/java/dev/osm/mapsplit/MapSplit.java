@@ -640,6 +640,13 @@ public class MapSplit {
     int wCount = 0;
     int rCount = 0;
 
+    /**
+     * Setup the OSM object to tiles mappings
+     * 
+     * @param verbose verbose output if true
+     * @throws IOException if reading the input caused an issue
+     * @throws InterruptedException if a Thread was interrupted
+     */
     public void setup(final boolean verbose) throws IOException, InterruptedException {
 
         this.verbose = verbose;
@@ -909,8 +916,15 @@ public class MapSplit {
         return xNew << Const.MAX_ZOOM | yNew;
     }
 
-    private boolean isInside(double x, double y, double[] polygon) {
-
+    /**
+     * Check if the coordinates are inside a polygon
+     * 
+     * @param x longitude
+     * @param y latitude
+     * @param polygon the polygon
+     * @return true is inside
+     */
+    private boolean isInside(double x, double y, @NotNull double[] polygon) {
         boolean in = false;
         int lines = polygon.length / 2;
 
@@ -920,11 +934,18 @@ public class MapSplit {
                 in = !in;
             }
         }
-
         return in;
     }
 
-    private boolean isInside(int tx, int ty, double[] polygon) {
+    /**
+     * Check if the corners of a tile are inside a polygon
+     * 
+     * @param tx tile x number
+     * @param ty tile y number
+     * @param polygon the polygon
+     * @return true if a corner is inside
+     */
+    private boolean isInside(int tx, int ty, @NotNull double[] polygon) {
 
         for (int u = 0; u < 2; u++) {
             for (int v = 0; v < 2; v++) {
@@ -938,11 +959,21 @@ public class MapSplit {
         return false;
     }
 
-    private boolean isInside(int tx, int ty, List<double[]> inside, List<double[]> outside) {
+    /**
+     * Check if a tile intersects with / is covered by a polygon Note this only checks the corners of the tile so isn't
+     * really correct and should be replaced by a suitable correct algorithm
+     * 
+     * @param tx tile x number
+     * @param ty tile y number
+     * @param inside outer rings (the tile should be "inside")
+     * @param outside inner rings (the tile should be "outside")
+     * @return true if the tile intersects / is covered by the polygon
+     */
+    private boolean isInside(int tx, int ty, @NotNull List<double[]> inside, @NotNull List<double[]> outside) {
 
         boolean in = false;
         for (double[] polygon : inside) {
-            in |= isInside(tx, ty, polygon);
+            in = isInside(tx, ty, polygon);
             if (in) {
                 break;
             }
@@ -1049,7 +1080,7 @@ public class MapSplit {
      * @param verbose verbose output if true
      * @param mbTiles write to a MBTiles format sqlite database instead of writing individual tiles
      * @throws IOException if reading or creating the files has an issue
-     * @throws InterruptedException
+     * @throws InterruptedException if one of the Threads was interrupted
      */
     public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException, InterruptedException {
 
@@ -1266,7 +1297,7 @@ public class MapSplit {
                         try {
                             w.addTile(blob.toByteArray(), currentZoom, tileX, y);
                         } catch (MBTilesWriteException e) {
-                            LOGGER.info("" + currentZoom + " x:" + tileX + " y:" + y);
+                            LOGGER.warning(e.getMessage() + " z:" + currentZoom + " x:" + tileX + " y:" + y);
                             throw new IOException(e);
                         }
                     }
@@ -1329,9 +1360,8 @@ public class MapSplit {
      * @param mbTiles generate a MBTiles format SQLite file instead of individual tiles
      * @param nodeLimit if > 0 optimize tiles so that they contain at least nodeLimit Nodes
      * @return the "last changed" date
-     * @throws InterruptedException
-     * @throws IOException
-     * @throws Exception
+     * @throws InterruptedException if one of the Threads was interrupted
+     * @throws IOException if IO went wrong
      */
     private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
             double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles, int nodeLimit)
@@ -1426,7 +1456,7 @@ public class MapSplit {
         Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
         Option metadataOption = Option.builder("m").longOpt("metadata").desc("store metadata in tile-files (version, timestamp)").build();
         Option completeMPOption = Option.builder("c").longOpt("complete").desc("store complete data for multi polygons").build();
-        Option mbTilesOption = Option.builder("x").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
+        Option mbTilesOption = Option.builder("M").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
         Option maxFilesOption = Option.builder("f").longOpt("maxfiles").hasArg().desc("maximum number of open files at a time").build();
         Option borderOption = Option.builder("b").longOpt("border").hasArg()
                 .desc("enlarge tiles by val ([0-1]) of the tile's size to get a border around the tile.").build();
@@ -1445,7 +1475,7 @@ public class MapSplit {
         Option zoomOption = Option.builder("z").longOpt("zoom").hasArg()
                 .desc("zoom level to create the tiles at must be between 0 and 16 (inclusive), default is 13").build();
 
-        Option optimizeOption = Option.builder("e").longOpt("optimize").hasArg()
+        Option optimizeOption = Option.builder("O").longOpt("optimize").hasArg()
                 .desc("optimize the tile stack, agrument is minimum number of Nodes a tile should contain, default is to not optimize").build();
 
         Options options = new Options();
@@ -1487,7 +1517,7 @@ public class MapSplit {
             if (line.hasOption("c")) {
                 completeRelations = true;
             }
-            if (line.hasOption("x")) {
+            if (line.hasOption("M")) {
                 mbTiles = true;
             }
             if (line.hasOption("f")) {
@@ -1498,7 +1528,7 @@ public class MapSplit {
                 dateFile = line.getOptionValue("date");
             }
             if (line.hasOption("p")) {
-                polygonFile = line.getOptionValue("ploygon");
+                polygonFile = line.getOptionValue("polygon");
             }
             if (line.hasOption("s")) {
                 String tmp = line.getOptionValue("size");
@@ -1531,11 +1561,12 @@ public class MapSplit {
                 String tmp = line.getOptionValue("zoom");
                 zoom = Integer.valueOf(tmp);
             }
-            if (line.hasOption("e")) {
+            if (line.hasOption("O")) {
                 String tmp = line.getOptionValue("optimize");
                 nodeLimit = Integer.valueOf(tmp);
             }
         } catch (ParseException | NumberFormatException exp) {
+            LOGGER.warning(exp.getMessage());
             HelpFormatter formatter = new HelpFormatter();
             formatter.printHelp(MAPSPLIT_TAG, options);
             return;
