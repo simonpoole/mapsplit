@@ -39,7 +39,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -80,13 +85,6 @@ public class MapSplit {
     private static final Logger LOGGER = Logger.getLogger(MapSplit.class.getName());
 
     private final int zoom;
-
-    /*
-     * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
-     */
-    private static final int NODE_MAP_SIZE     = 60000000;
-    private static final int WAY_MAP_SIZE      = 10000000;
-    private static final int RELATION_MAP_SIZE = 2500000;
 
     // all data after this appointment date is considered new or modified
     private Date appointmentDate;
@@ -230,7 +228,7 @@ public class MapSplit {
     }
 
     /**
-     * Fill out holes 
+     * Fill out holes
      * 
      * @param tiles the current tiles
      */
@@ -1444,11 +1442,21 @@ public class MapSplit {
         boolean completeRelations = false;
         boolean mbTiles = false;
         String dateFile = null;
-        int[] mapSizes = new int[] { NODE_MAP_SIZE, WAY_MAP_SIZE, RELATION_MAP_SIZE };
+        int[] mapSizes = new int[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
         int maxFiles = -1;
         double border = 0.0;
         int zoom = 13;
         int nodeLimit = 0;
+
+        // set up logging
+        LogManager.getLogManager().reset();
+        SimpleFormatter fmt = new SimpleFormatter();
+        Handler stdoutHandler = new StreamHandler(System.out, fmt);
+        stdoutHandler.setLevel(Level.INFO);
+        LOGGER.addHandler(stdoutHandler);
+        Handler stderrHandler = new StreamHandler(System.err, fmt);
+        stderrHandler.setLevel(Level.WARNING);
+        LOGGER.addHandler(stderrHandler);
 
         // arguments
         Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();

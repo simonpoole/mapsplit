@@ -16,6 +16,13 @@ public final class Const {
     // used on values
     static final long MAX_TILE_NUMBER = (long) Math.pow(2, MAX_ZOOM) - 1;
 
+    /*
+     * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
+     */
+    static final int NODE_MAP_SIZE     = 60000000;
+    static final int WAY_MAP_SIZE      = 10000000;
+    static final int RELATION_MAP_SIZE = 2500000;
+
     /**
      * Private constructor to stop instantiation
      */
