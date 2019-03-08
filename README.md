@@ -37,7 +37,9 @@ source file is probably faster in any case.
 
 ### Legal
 
-See COPYING.
+See COPYING for licence information.
+
+OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap Foundation. The MapSplit application is not endorsed by or affiliated with the OpenStreetMap Foundation. 
 
 ### Usage
 
