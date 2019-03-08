@@ -3,6 +3,7 @@ plugins {
 }
 
 apply plugin: 'java'
+apply plugin: "jacoco"
 apply plugin: 'eclipse'
 
 version = '0.2.0'
@@ -12,17 +13,17 @@ repositories {
     mavenCentral()
     maven { url 'http://nexus.onebusaway.org/nexus/content/repositories/public/' }
     maven { url 'https://dl.bintray.com/content/simonpoole/div' }
-//    flatDir {
-//        dirs 'lib'
-//    }
+    //    flatDir {
+    //        dirs 'lib'
+    //    }
 }
 
 //create a single Jar with all dependencies
 task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'mapsplit fat jar',
-            'Implementation-Version': "${project.version}",
-            'Main-Class': 'dev.osm.mapsplit.MapSplit'
+        'Implementation-Version': "${project.version}",
+        'Main-Class': 'dev.osm.mapsplit.MapSplit'
     }
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -38,6 +39,10 @@ sonarqube {
     }
 }
 
+test{
+    maxHeapSize = "6G"
+}
+
 dependencies {
     compile 'org.openstreetmap.osmosis:osmosis-core:0.47'
     compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
@@ -46,4 +51,5 @@ dependencies {
     compile 'org.imintel:mbtiles4j:1.1.0'
     compile 'org.jetbrains:annotations:15.0'
     compile 'com.zaxxer:SparseBitSet:1.1'
+    testCompile 'junit:junit:4.12'
 }

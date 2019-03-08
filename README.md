@@ -74,3 +74,8 @@ See COPYING.
     java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvM -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -O 2000
 
  Will generate a 211MB large MBTile format MapSplit file with all the data for the Iraq in a couple of minutes.
+ 
+### Testing
+
+The current tests are rather superficial and need to be improved, the high coverage numbers are misleading.
+ 
