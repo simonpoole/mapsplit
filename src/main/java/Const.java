@@ -7,4 +7,11 @@ public class Const {
      
     // used on values
     static final long MAX_TILE_NUMBER  = (long) Math.pow(2, MAX_ZOOM) - 1;
+    
+    /**
+     * Private constructor to stop instantiation
+     */
+    private Const() {
+        // nothing
+    }
 }

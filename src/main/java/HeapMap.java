@@ -285,7 +285,7 @@ public class HeapMap implements OsmMap {
         }
 
         // create a expanded temp set for neighbourhood tiles
-        Collection<Long> expanded = new TreeSet<Long>();
+        Collection<Long> expanded = new TreeSet<>();
         for (long tile : tiles) {
             expanded.add(tile);
 
@@ -341,7 +341,7 @@ public class HeapMap implements OsmMap {
     }
 
     private List<Integer> parseMarker(long value) {
-        List<Integer> result = new ArrayList<Integer>();
+        List<Integer> result = new ArrayList<>();
         int tx = tileX(value);
         int ty = tileY(value);
 
@@ -362,7 +362,7 @@ public class HeapMap implements OsmMap {
     }
 
     private List<Integer> asList(int[] set) {
-        List<Integer> result = new ArrayList<Integer>();
+        List<Integer> result = new ArrayList<>();
 
         for (int i = 0; i < set.length; i++) {
             result.add(set[i]);

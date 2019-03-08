@@ -149,7 +149,7 @@ public class MapSplit {
         wmap = new HeapMap(mapSizes[1]);
         rmap = new HeapMap(mapSizes[2]);
         if (completeRelations) {
-            extraWayMap = new HashMap<Long, Collection<Long>>();
+            extraWayMap = new HashMap<>();
         }
 
         optimizedModifiedTiles.put(zoom, modifiedTiles);
@@ -227,8 +227,10 @@ public class MapSplit {
      * @param tiles
      */
     private void checkAndFill(@NotNull Collection<Long> tiles) {
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
 
         // determine the min/max tile nrs
         for (long tile : tiles) {
@@ -269,7 +271,7 @@ public class MapSplit {
         }
 
         // start with tile 1,1 and fill region...
-        Stack<Integer> stack = new Stack<Integer>();
+        Stack<Integer> stack = new Stack<>();
         stack.push(1 + 1 * sizeX);
 
         // fill all tiles that are reachable by a 4-neighbourhood
@@ -423,7 +425,7 @@ public class MapSplit {
     private void addWayToMap(@NotNull Way way) {
 
         boolean modified = way.getTimestamp().after(appointmentDate);
-        Set<Long> tileList = new TreeSet<Long>();
+        Set<Long> tileList = new TreeSet<>();
 
         // mark the latest changes made to this map
         if (way.getTimestamp().after(latestDate)) {
@@ -505,7 +507,7 @@ public class MapSplit {
     private void addRelationToMap(@NotNull Relation r) {
 
         boolean modified = r.getTimestamp().after(appointmentDate);
-        Collection<Long> tileList = new TreeSet<Long>();
+        Collection<Long> tileList = new TreeSet<>();
 
         if (r.getTimestamp().after(latestDate)) {
             latestDate = r.getTimestamp();
@@ -627,7 +629,7 @@ public class MapSplit {
     static int wCount = 0;
     static int rCount = 0;
 
-    public void setup(final boolean verbose) throws IOException {
+    public void setup(final boolean verbose) throws IOException, InterruptedException {
 
         this.verbose = verbose;
 
@@ -693,7 +695,8 @@ public class MapSplit {
             try {
                 readerThread.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.err.println("readerThread interupted " + e.getMessage());
+                throw e;
             }
         }
 
@@ -745,11 +748,12 @@ public class MapSplit {
                 try {
                     readerThread.join();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    System.err.println("readerThread interupted " + e.getMessage());
+                    throw e;
                 }
             }
 
-            if (!complete) {
+            if (!complete) { // NOSONAR
                 throw new IOException("Could not read file fully in second run");
             }
         }
@@ -788,7 +792,7 @@ public class MapSplit {
             }
         }
         long nodeCount = 0;
-        List<Integer> keys = new ArrayList<Integer>(stats.keySet());
+        List<Integer> keys = new ArrayList<>(stats.keySet());
         Collections.sort(keys);
         for (Integer key : keys) {
             int value = stats.get(key);
@@ -954,11 +958,11 @@ public class MapSplit {
      */
     public void clipPoly(@NotNull String polygonFile) throws IOException {
 
-        List<double[]> inside = new ArrayList<double[]>();
-        List<double[]> outside = new ArrayList<double[]>();
+        List<double[]> inside = new ArrayList<>();
+        List<double[]> outside = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(polygonFile)));) {
-            /* String name = */ br.readLine(); // unused..
+            /* String name = */ br.readLine(); // unused.. NOSONAR
 
             String poly = br.readLine();
             while (!"END".equals(poly)) {
@@ -971,7 +975,7 @@ public class MapSplit {
                 while (!"END".equals(coords)) {
 
                     coords = coords.trim();
-                    int idx = coords.indexOf(" ");
+                    int idx = coords.indexOf(' ');
                     double lon = Double.parseDouble(coords.substring(0, idx));
                     double lat = Double.parseDouble(coords.substring(idx + 1));
 
@@ -1034,8 +1038,9 @@ public class MapSplit {
      * @param verbose verbose output if true
      * @param mbTiles write to a MBTiles format sqlite database instead of writing individual tiles
      * @throws IOException if reading or creating the files has an issue
+     * @throws InterruptedException 
      */
-    public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException {
+    public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException, InterruptedException {
 
         MBTilesWriter w = null;
         if (mbTiles) {
@@ -1065,9 +1070,9 @@ public class MapSplit {
             while (true) {
 
                 complete = false;
-                outFiles = new HashMap<Integer, OsmosisSerializer>();
+                outFiles = new HashMap<>();
                 if (mbTiles) {
-                    outBlobs = new HashMap<Integer, ByteArrayOutputStream>();
+                    outBlobs = new HashMap<>();
                 }
 
                 // Setup out-files...
@@ -1227,7 +1232,8 @@ public class MapSplit {
                     try {
                         readerThread.join();
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.err.println("readerThread interupted " + e.getMessage());
+                        throw e;
                     }
                 }
 
@@ -1384,7 +1390,7 @@ public class MapSplit {
 
         Date appointmentDate;
         String inputFile = null;
-        String outputBase = null;
+        String outputBase = "";
         String polygonFile = null;
         boolean verbose = false;
         boolean timing = false;
@@ -1530,19 +1536,19 @@ public class MapSplit {
             File file = new File(dateFile);
 
             if (file.exists()) {
-                DataInputStream dis = new DataInputStream(new FileInputStream(file));
-                String line = dis.readUTF();
+                try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
+                    String line = dis.readUTF();
 
-                if (line != null) {
-                    try {
-                        appointmentDate = df.parse(line);
-                    } catch (java.text.ParseException pe) {
-                        if (verbose) {
-                            System.out.println("Could not parse datefile.");
+                    if (line != null) {
+                        try {
+                            appointmentDate = df.parse(line);
+                        } catch (java.text.ParseException pe) {
+                            if (verbose) {
+                                System.out.println("Could not parse datefile.");
+                            }
                         }
                     }
                 }
-                dis.close();
             } else if (verbose) {
                 System.out.println("Datefile does not exist, writing all tiles");
             }
@@ -1555,7 +1561,7 @@ public class MapSplit {
 
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations,
-                mbTiles, nodeLimit);
+                mbTiles, nodeLimit); // NOSONAR
 
         if (verbose) {
             System.out.println("Last changes to the map had been done on " + df.format(latest));
