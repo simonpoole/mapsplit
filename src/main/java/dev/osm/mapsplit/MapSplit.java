@@ -18,25 +18,28 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.sql.SQLException;
 import java.text.DateFormat;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -65,13 +68,16 @@ import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 import org.openstreetmap.osmosis.core.task.v0_6.Sink;
 import org.openstreetmap.osmosis.osmbinary.file.BlockOutputStream;
 
-// import crosby.binary.file.BlockOutputStream;
 import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
 
 public class MapSplit {
 
+    private static final String MAPSPLIT_TAG = "mapsplit";
+
     private static final String PBF_EXT = ".pbf";
+
+    private static final Logger LOGGER = Logger.getLogger(MapSplit.class.getName());
 
     private final int zoom;
 
@@ -126,7 +132,7 @@ public class MapSplit {
     private Map<Integer, ByteArrayOutputStream> outBlobs;
 
     // new zoom levels for tiles during optimization
-    private final Map<Integer, Byte> zoomMap = new HashMap<>();;
+    private final Map<Integer, Byte> zoomMap = new HashMap<>();
 
     /**
      * Construct a new MapSplit instance
@@ -220,7 +226,7 @@ public class MapSplit {
         t -= border * dy;
         b += border * dy;
 
-        return new Bound(r, l, t, b, "mapsplit");
+        return new Bound(r, l, t, b, MAPSPLIT_TAG);
     }
 
     /**
@@ -272,7 +278,7 @@ public class MapSplit {
         }
 
         // start with tile 1,1 and fill region...
-        Stack<Integer> stack = new Stack<>();
+        Deque<Integer> stack = new ArrayDeque<>();
         stack.push(1 + 1 * sizeX);
 
         // fill all tiles that are reachable by a 4-neighbourhood
@@ -441,7 +447,7 @@ public class MapSplit {
             // don't ignore missing nodes
             if (tile == 0) {
                 if (verbose) {
-                    System.out.println("way " + way.getId() + " missing node " + wayNode.getNodeId());
+                    LOGGER.info("way " + way.getId() + " missing node " + wayNode.getNodeId());
                 }
                 return;
             }
@@ -523,7 +529,7 @@ public class MapSplit {
                 // The referenced node is not in our data set
                 if (tile == 0) {
                     if (verbose) {
-                        System.out.println("Non-complete Relation " + r.getId() + " (missing a node)");
+                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a node)");
                     }
                     continue;
                 }
@@ -545,7 +551,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        System.out.println("Non-complete Relation " + r.getId() + " (missing a way)");
+                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a way)");
                     }
                     return;
                 }
@@ -568,7 +574,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        System.out.println("Non-complete Relation " + r.getId() + " (missing a relation)");
+                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a relation)");
                     }
                     return;
                 }
@@ -582,12 +588,14 @@ public class MapSplit {
                     tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
                 }
                 break;
+            default:
+                LOGGER.warning("Unknown member type " + m.getMemberType());
             }
         }
 
         // Just in case, this can happen due to silly input data :'(
         if (tileList.isEmpty()) {
-            System.out.println("Ignoring empty relation");
+            LOGGER.warning("Ignoring empty relation");
             return;
         }
 
@@ -621,14 +629,16 @@ public class MapSplit {
                     break;
                 case Bound:
                     break;
+                default:
+                    LOGGER.warning("Unknown member type " + m.getMemberType());
                 }
             }
         }
     }
 
-    static int nCount = 0;
-    static int wCount = 0;
-    static int rCount = 0;
+    int nCount = 0;
+    int wCount = 0;
+    int rCount = 0;
 
     public void setup(final boolean verbose) throws IOException, InterruptedException {
 
@@ -649,7 +659,7 @@ public class MapSplit {
                     if (verbose) {
                         nCount++;
                         if ((nCount % (nmap.getSize() / 20)) == 0) {
-                            System.out.println(nCount + " nodes processed");
+                            LOGGER.info(nCount + " nodes processed");
                         }
                     }
                 } else if (ec instanceof WayContainer) {
@@ -658,7 +668,7 @@ public class MapSplit {
                     if (verbose) {
                         wCount++;
                         if ((wCount % (wmap.getSize() / 20)) == 0) {
-                            System.out.println(wCount + " ways processed");
+                            LOGGER.info(wCount + " ways processed");
                         }
                     }
                 } else if (ec instanceof RelationContainer) {
@@ -667,26 +677,26 @@ public class MapSplit {
                     if (verbose) {
                         rCount++;
                         if ((rCount % (rmap.getSize() / 20)) == 0) {
-                            System.out.println(wCount + " relations processed");
+                            LOGGER.info(wCount + " relations processed");
                         }
                     }
                 } else if (ec instanceof BoundContainer) {
                     // nothing todo, we ignore bound tags
                 } else {
-                    System.err.println("Unknown Element while reading");
-                    System.err.println(ec.toString());
-                    System.err.println(ec.getEntity().toString());
+                    LOGGER.warning("Unknown Element while reading");
+                    LOGGER.warning(ec.toString());
+                    LOGGER.warning(ec.getEntity().toString());
                 }
             }
 
             @Override
             public void initialize(Map<String, Object> metaData) {
-                // TODO Auto-generated method stub
+                // not used
             }
 
             @Override
             public void close() {
-                // TODO Auto-generated method stub
+                // not used
             }
         });
 
@@ -696,7 +706,7 @@ public class MapSplit {
             try {
                 readerThread.join();
             } catch (InterruptedException e) {
-                System.err.println("readerThread interupted " + e.getMessage());
+                LOGGER.warning("readerThread interupted " + e.getMessage());
                 throw e;
             }
         }
@@ -706,7 +716,7 @@ public class MapSplit {
         }
 
         if (verbose) {
-            System.out.println("We have read:\n" + nCount + " nodes\n" + wCount + " ways\n" + rCount + " relations");
+            LOGGER.info("We have read:\n" + nCount + " nodes\n" + wCount + " ways\n" + rCount + " relations");
         }
 
         // Second run if we are in complete-relation-mode
@@ -749,7 +759,7 @@ public class MapSplit {
                 try {
                     readerThread.join();
                 } catch (InterruptedException e) {
-                    System.err.println("readerThread interupted " + e.getMessage());
+                    LOGGER.warning("readerThread interupted " + e.getMessage());
                     throw e;
                 }
             }
@@ -768,7 +778,7 @@ public class MapSplit {
      */
     private void optimize(final int nodeLimit) {
         if (verbose) {
-            System.out.println("Optimizing ...");
+            LOGGER.info("Optimizing ...");
         }
         long statsStart = System.currentTimeMillis();
         // count Node tile use
@@ -789,7 +799,7 @@ public class MapSplit {
                     }
                 }
             } else {
-                System.out.println("tiles null for " + k);
+                LOGGER.info("tiles null for " + k);
             }
         }
         long nodeCount = 0;
@@ -841,8 +851,8 @@ public class MapSplit {
             tileSet.set(idx);
         }
         if (verbose) {
-            System.out.println("Tiles " + stats.size() + " avg node count " + (nodeCount / stats.size()) + " merged tiles " + zoomMap.size());
-            System.out.println("Stats took " + (System.currentTimeMillis() - statsStart) / 1000 + " s");
+            LOGGER.info("Tiles " + stats.size() + " avg node count " + (nodeCount / stats.size()) + " merged tiles " + zoomMap.size());
+            LOGGER.info("Stats took " + (System.currentTimeMillis() - statsStart) / 1000 + " s");
         }
     }
 
@@ -1039,7 +1049,7 @@ public class MapSplit {
      * @param verbose verbose output if true
      * @param mbTiles write to a MBTiles format sqlite database instead of writing individual tiles
      * @throws IOException if reading or creating the files has an issue
-     * @throws InterruptedException 
+     * @throws InterruptedException
      */
     public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException, InterruptedException {
 
@@ -1062,7 +1072,7 @@ public class MapSplit {
             }
             int ymax = 1 << currentZoom; // for conversion to TMS schema
             if (verbose) {
-                System.out.println("Processing " + tileSet.cardinality() + " tiles for zoom " + currentZoom);
+                LOGGER.info("Processing " + tileSet.cardinality() + " tiles for zoom " + currentZoom);
             }
 
             int idx = 0;
@@ -1176,9 +1186,9 @@ public class MapSplit {
                             }
                             return;
                         } else {
-                            System.err.println("Unknown Element while reading");
-                            System.err.println(ec.toString());
-                            System.err.println(ec.getEntity().toString());
+                            LOGGER.warning("Unknown Element while reading");
+                            LOGGER.warning(ec.toString());
+                            LOGGER.warning(ec.getEntity().toString());
                             return;
                         }
 
@@ -1233,7 +1243,7 @@ public class MapSplit {
                     try {
                         readerThread.join();
                     } catch (InterruptedException e) {
-                        System.err.println("readerThread interupted " + e.getMessage());
+                        LOGGER.warning("readerThread interupted " + e.getMessage());
                         throw e;
                     }
                 }
@@ -1256,14 +1266,14 @@ public class MapSplit {
                         try {
                             w.addTile(blob.toByteArray(), currentZoom, tileX, y);
                         } catch (MBTilesWriteException e) {
-                            System.out.println("" + currentZoom + " x:" + tileX + " y:" + y);
+                            LOGGER.info("" + currentZoom + " x:" + tileX + " y:" + y);
                             throw new IOException(e);
                         }
                     }
                 }
 
                 if (verbose) {
-                    System.out.println("Wrote " + outFiles.size() + " tiles, continuing with next block of tiles");
+                    LOGGER.info("Wrote " + outFiles.size() + " tiles, continuing with next block of tiles");
                 }
                 // remove mappings form this pass
                 outFiles.clear();
@@ -1282,8 +1292,8 @@ public class MapSplit {
         if (mbTiles) {
             MetadataEntry ent = new MetadataEntry();
             File file = new File(basename);
-            ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion("0.2.0")
-                    .setAttribution("OpenStreetMap Contributors ODbL 1.0").addCustomKeyValue("format", "application/vnd.openstreetmap.data+pbf")
+            ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion(Const.MBT_VERSION)
+                    .setAttribution(Const.OSM_ATTRIBUTION).addCustomKeyValue("format", Const.MSF_MIME_TYPE)
                     .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom));
             if (bounds != null) {
                 ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
@@ -1319,11 +1329,13 @@ public class MapSplit {
      * @param mbTiles generate a MBTiles format SQLite file instead of individual tiles
      * @param nodeLimit if > 0 optimize tiles so that they contain at least nodeLimit Nodes
      * @return the "last changed" date
+     * @throws InterruptedException
+     * @throws IOException
      * @throws Exception
      */
     private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
             double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles, int nodeLimit)
-            throws Exception {
+            throws IOException, InterruptedException {
 
         long startup = System.currentTimeMillis();
 
@@ -1339,7 +1351,7 @@ public class MapSplit {
 
         if (polygonFile != null) {
             if (verbose) {
-                System.out.println("Clip tiles with polygon given by \"" + polygonFile + "\"");
+                LOGGER.info("Clip tiles with polygon given by \"" + polygonFile + "\"");
             }
             split.clipPoly(polygonFile);
         }
@@ -1347,10 +1359,10 @@ public class MapSplit {
         long modified = split.modifiedTiles.cardinality();
 
         if (timing) {
-            System.out.println("Initial reading and datastructure setup took " + time + "ms");
+            LOGGER.info("Initial reading and datastructure setup took " + time + "ms");
         }
         if (verbose) {
-            System.out.println("We have " + modified + " modified tiles to store.");
+            LOGGER.info("We have " + modified + " modified tiles to store.");
         }
 
         if (nodeLimit > 0) {
@@ -1361,18 +1373,18 @@ public class MapSplit {
         split.store(outputBase, metadata, verbose, mbTiles);
         time = System.currentTimeMillis() - time;
         if (timing) {
-            System.out.println("Saving tiles took " + time + "ms");
+            LOGGER.info("Saving tiles took " + time + "ms");
             long overall = System.currentTimeMillis() - startup;
             System.out.print("\nOverall runtime: " + overall + "ms");
-            System.out.println(" == " + (overall / 1000 / 60) + "min");
+            LOGGER.info(" == " + (overall / 1000 / 60) + "min");
         }
 
         if (verbose) {
-            System.out.println("\nHashmap's load:");
-            System.out.println("Nodes    : " + split.nmap.getLoad());
-            System.out.println("Ways     : " + split.wmap.getLoad());
-            System.out.println("Relations: " + split.rmap.getLoad());
-            System.out.println("\nHashmap's MissHitRatio:");
+            LOGGER.info("\nHashmap's load:");
+            LOGGER.info("Nodes    : " + split.nmap.getLoad());
+            LOGGER.info("Ways     : " + split.wmap.getLoad());
+            LOGGER.info("Relations: " + split.rmap.getLoad());
+            LOGGER.info("\nHashmap's MissHitRatio:");
             System.out.printf("Nodes    : %10.6f\n", nratio);
             System.out.printf("Ways     : %10.6f\n", wratio);
             System.out.printf("Relations: %10.6f\n", rratio);
@@ -1385,9 +1397,12 @@ public class MapSplit {
      * Main class (what else?)
      * 
      * @param args command line arguments
+     * @throws IOException
+     * @throws FileNotFoundException
+     * @throws InterruptedException
      * @throws Exception
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws FileNotFoundException, IOException, InterruptedException {
 
         Date appointmentDate;
         String inputFile = null;
@@ -1457,7 +1472,7 @@ public class MapSplit {
             CommandLine line = parser.parse(options, args);
             if (line.hasOption("h")) {
                 HelpFormatter formatter = new HelpFormatter();
-                formatter.printHelp("mapsplit", options);
+                formatter.printHelp(MAPSPLIT_TAG, options);
                 return;
             }
             if (line.hasOption("v")) {
@@ -1503,7 +1518,7 @@ public class MapSplit {
                         border = 1;
                     }
                 } catch (NumberFormatException e) {
-                    System.err.println("Could not parse border parameter, falling back to defaults");
+                    LOGGER.warning("Could not parse border parameter, falling back to defaults");
                 }
             }
             if (line.hasOption("i")) {
@@ -1522,7 +1537,7 @@ public class MapSplit {
             }
         } catch (ParseException | NumberFormatException exp) {
             HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("mapsplit", options);
+            formatter.printHelp(MAPSPLIT_TAG, options);
             return;
         }
 
@@ -1531,7 +1546,7 @@ public class MapSplit {
         appointmentDate = new Date(0);
 
         if (dateFile == null && verbose) {
-            System.out.println("No datefile given. Writing all available tiles.");
+            LOGGER.info("No datefile given. Writing all available tiles.");
         } else if (dateFile != null) {
 
             File file = new File(dateFile);
@@ -1545,27 +1560,27 @@ public class MapSplit {
                             appointmentDate = df.parse(line);
                         } catch (java.text.ParseException pe) {
                             if (verbose) {
-                                System.out.println("Could not parse datefile.");
+                                LOGGER.info("Could not parse datefile.");
                             }
                         }
                     }
                 }
             } else if (verbose) {
-                System.out.println("Datefile does not exist, writing all tiles");
+                LOGGER.info("Datefile does not exist, writing all tiles");
             }
         }
 
         if (verbose) {
-            System.out.println("Reading: " + inputFile);
-            System.out.println("Writing: " + outputBase);
+            LOGGER.info("Reading: " + inputFile);
+            LOGGER.info("Writing: " + outputBase);
         }
 
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
-                mbTiles, nodeLimit); 
+                mbTiles, nodeLimit);
 
         if (verbose) {
-            System.out.println("Last changes to the map had been done on " + df.format(latest));
+            LOGGER.info("Last changes to the map had been done on " + df.format(latest));
         }
         if (dateFile != null) {
             try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));) {

@@ -17,6 +17,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.TreeSet;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * An HashMap in Heap memory, optimized for size to use in OSM
  */
@@ -49,6 +51,19 @@ public class HeapMap implements OsmMap {
 
     private long hits   = 0;
     private long misses = 0;
+
+    class HeapMapError extends Error {
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Construct an Error indicating that we've encountered a serious issue
+         * 
+         * @param message the message
+         */
+        HeapMapError(@NotNull String message) {
+            super(message);
+        }
+    }
 
     /**
      * Construct a new map
@@ -121,7 +136,7 @@ public class HeapMap implements OsmMap {
             bucket = bucket % size;
 
             if (count >= size) {
-                throw new Error("HashMap filled up, increase the (static) size!");
+                throw new HeapMapError("HashMap filled up, increase the (static) size!");
             }
         }
     }
@@ -170,7 +185,7 @@ public class HeapMap implements OsmMap {
         return values[bucket];
     }
 
-    private int[] merge(int[] old, int[] add, int len) {
+    private int[] merge(@NotNull int[] old, @NotNull int[] add, int len) {
         int curLen = old.length;
         int[] tmp = new int[curLen + len];
         System.arraycopy(old, 0, tmp, 0, old.length);
@@ -197,7 +212,7 @@ public class HeapMap implements OsmMap {
         return result;
     }
 
-    private void appendNeighbours(int index, Collection<Long> tiles) {
+    private void appendNeighbours(int index, @NotNull Collection<Long> tiles) {
         int[] old = extendedSet[index];
         int[] set = new int[4 * tiles.size()];
         int pos = 0;
@@ -223,7 +238,7 @@ public class HeapMap implements OsmMap {
         extendedSet[index] = result;
     }
 
-    private void extendToNeighbourSet(int bucket, Collection<Long> tiles) {
+    private void extendToNeighbourSet(int bucket, @NotNull Collection<Long> tiles) {
         long val = values[bucket];
 
         if ((val & TILE_MARKER_MASK) != 0) {
@@ -268,7 +283,7 @@ public class HeapMap implements OsmMap {
      * @see OsmMap#update(long, java.util.List)
      */
     @Override
-    public void update(long key, Collection<Long> tiles) {
+    public void update(long key, @NotNull Collection<Long> tiles) {
 
         int bucket = getBucket(key);
         if (bucket == -1) {
@@ -362,7 +377,7 @@ public class HeapMap implements OsmMap {
         return result;
     }
 
-    private List<Integer> asList(int[] set) {
+    private List<Integer> asList(@NotNull int[] set) {
         List<Integer> result = new ArrayList<>();
 
         for (int i = 0; i < set.length; i++) {
@@ -448,9 +463,9 @@ public class HeapMap implements OsmMap {
 
     @Override
     public List<Long> keys() {
-        List<Long>result = new ArrayList<>();
-        for (int i=0;i<keys.length;i++) {
-            if (values[i]!=0) {
+        List<Long> result = new ArrayList<>();
+        for (int i = 0; i < keys.length; i++) {
+            if (values[i] != 0) {
                 result.add(keys[i] & KEY_MASK);
             }
         }
