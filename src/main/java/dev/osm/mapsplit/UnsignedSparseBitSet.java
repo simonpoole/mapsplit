@@ -1,3 +1,4 @@
+package dev.osm.mapsplit;
 import com.zaxxer.sparsebits.SparseBitSet;
 
 /**

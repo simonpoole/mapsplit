@@ -22,7 +22,7 @@ task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'mapsplit fat jar',
             'Implementation-Version': "${project.version}",
-            'Main-Class': 'MapSplit'
+            'Main-Class': 'dev.osm.mapsplit.MapSplit'
     }
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }

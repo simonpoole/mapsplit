@@ -1,3 +1,4 @@
+package dev.osm.mapsplit;
 
 /*
  * Mapsplit - A simple but fast tile splitter for large OSM data

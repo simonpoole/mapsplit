@@ -1,3 +1,4 @@
+package dev.osm.mapsplit;
 
 public class Const {
     /*

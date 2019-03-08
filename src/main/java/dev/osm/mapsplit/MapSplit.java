@@ -1,3 +1,4 @@
+package dev.osm.mapsplit;
 
 /*
  * Mapsplit - A simple but fast tile splitter for large OSM data
@@ -1560,8 +1561,8 @@ public class MapSplit {
         }
 
         // Actually run the splitter...
-        Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations,
-                mbTiles, nodeLimit); // NOSONAR
+        Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
+                mbTiles, nodeLimit); 
 
         if (verbose) {
             System.out.println("Last changes to the map had been done on " + df.format(latest));
