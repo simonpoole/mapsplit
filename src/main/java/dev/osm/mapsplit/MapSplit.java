@@ -230,8 +230,9 @@ public class MapSplit {
     }
 
     /**
+     * Fill out holes 
      * 
-     * @param tiles
+     * @param tiles the current tiles
      */
     private void checkAndFill(@NotNull Collection<Long> tiles) {
         int minX = Integer.MAX_VALUE;
@@ -529,7 +530,7 @@ public class MapSplit {
                 // The referenced node is not in our data set
                 if (tile == 0) {
                     if (verbose) {
-                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a node)");
+                        LOGGER.info(String.format("Non-complete Relation %d (missing a node)", r.getId()));
                     }
                     continue;
                 }
@@ -551,7 +552,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a way)");
+                        LOGGER.info(String.format("Non-complete Relation %d (missing a way)", r.getId()));
                     }
                     return;
                 }
@@ -574,7 +575,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        LOGGER.info("Non-complete Relation " + r.getId() + " (missing a relation)");
+                        LOGGER.info(String.format("Non-complete Relation %d (missing a relation)", r.getId()));
                     }
                     return;
                 }
@@ -806,7 +807,7 @@ public class MapSplit {
                     }
                 }
             } else {
-                LOGGER.info("tiles null for " + k);
+                LOGGER.info(String.format("tiles null for %s", k));
             }
         }
         long nodeCount = 0;
@@ -858,8 +859,8 @@ public class MapSplit {
             tileSet.set(idx);
         }
         if (verbose) {
-            LOGGER.info("Tiles " + stats.size() + " avg node count " + (nodeCount / stats.size()) + " merged tiles " + zoomMap.size());
-            LOGGER.info("Stats took " + (System.currentTimeMillis() - statsStart) / 1000 + " s");
+            LOGGER.info(String.format("Tiles %d avg node count %d merged tiles %d", stats.size(), nodeCount / stats.size(), zoomMap.size()));
+            LOGGER.info(String.format("Stats took %d s", (System.currentTimeMillis() - statsStart) / 1000));
         }
     }
 
@@ -1297,14 +1298,14 @@ public class MapSplit {
                         try {
                             w.addTile(blob.toByteArray(), currentZoom, tileX, y);
                         } catch (MBTilesWriteException e) {
-                            LOGGER.warning(e.getMessage() + " z:" + currentZoom + " x:" + tileX + " y:" + y);
+                            LOGGER.warning(String.format("%s z:%d x:%d y:%d", e.getMessage(), currentZoom, tileX, tileY));
                             throw new IOException(e);
                         }
                     }
                 }
 
                 if (verbose) {
-                    LOGGER.info("Wrote " + outFiles.size() + " tiles, continuing with next block of tiles");
+                    LOGGER.info(String.format("Wrote %s tiles, continuing with next block of tiles", outFiles.size()));
                 }
                 // remove mappings form this pass
                 outFiles.clear();
@@ -1381,7 +1382,7 @@ public class MapSplit {
 
         if (polygonFile != null) {
             if (verbose) {
-                LOGGER.info("Clip tiles with polygon given by \"" + polygonFile + "\"");
+                LOGGER.info(String.format("Clip tiles with polygon given by \"%s\"", polygonFile));
             }
             split.clipPoly(polygonFile);
         }
@@ -1389,10 +1390,10 @@ public class MapSplit {
         long modified = split.modifiedTiles.cardinality();
 
         if (timing) {
-            LOGGER.info("Initial reading and datastructure setup took " + time + "ms");
+            LOGGER.info(String.format("Initial reading and datastructure setup took %d ms", time));
         }
         if (verbose) {
-            LOGGER.info("We have " + modified + " modified tiles to store.");
+            LOGGER.info(String.format("We have %d modified tiles to store.", modified));
         }
 
         if (nodeLimit > 0) {
@@ -1403,21 +1404,21 @@ public class MapSplit {
         split.store(outputBase, metadata, verbose, mbTiles);
         time = System.currentTimeMillis() - time;
         if (timing) {
-            LOGGER.info("Saving tiles took " + time + "ms");
+            LOGGER.info(String.format("Saving tiles took %d ms", time));
             long overall = System.currentTimeMillis() - startup;
-            System.out.print("\nOverall runtime: " + overall + "ms");
-            LOGGER.info(" == " + (overall / 1000 / 60) + "min");
+            LOGGER.info(String.format("Overall runtime: %d ms", overall));
+            LOGGER.info(String.format(" == %d min", (overall / 1000 / 60)));
         }
 
         if (verbose) {
-            LOGGER.info("\nHashmap's load:");
-            LOGGER.info("Nodes    : " + split.nmap.getLoad());
-            LOGGER.info("Ways     : " + split.wmap.getLoad());
-            LOGGER.info("Relations: " + split.rmap.getLoad());
-            LOGGER.info("\nHashmap's MissHitRatio:");
-            System.out.printf("Nodes    : %10.6f\n", nratio);
-            System.out.printf("Ways     : %10.6f\n", wratio);
-            System.out.printf("Relations: %10.6f\n", rratio);
+            LOGGER.info("HeapMap's load:");
+            LOGGER.info(String.format("Nodes    : %f", split.nmap.getLoad()));
+            LOGGER.info(String.format("Ways     : %f", split.wmap.getLoad()));
+            LOGGER.info(String.format("Relations: %f", split.rmap.getLoad()));
+            LOGGER.info("HeapMap's MissHitRatio:");
+            LOGGER.info(String.format("Nodes    : %10.6f", nratio));
+            LOGGER.info(String.format("Ways     : %10.6f", wratio));
+            LOGGER.info(String.format("Relations: %10.6f", rratio));
         }
 
         return split.latestDate;
@@ -1427,10 +1428,9 @@ public class MapSplit {
      * Main class (what else?)
      * 
      * @param args command line arguments
-     * @throws IOException
-     * @throws FileNotFoundException
-     * @throws InterruptedException
-     * @throws Exception
+     * @throws IOException if IO failed
+     * @throws FileNotFoundException if the input file could not be found
+     * @throws InterruptedException if a THread was interrupted
      */
     public static void main(String[] args) throws FileNotFoundException, IOException, InterruptedException {
 
