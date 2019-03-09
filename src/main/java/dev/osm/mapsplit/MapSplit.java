@@ -18,7 +18,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -446,7 +445,7 @@ public class MapSplit {
             // don't ignore missing nodes
             if (tile == 0) {
                 if (verbose) {
-                    LOGGER.info("way " + way.getId() + " missing node " + wayNode.getNodeId());
+                    LOGGER.log(Level.INFO, "way " + way.getId() + " missing node " + wayNode.getNodeId());
                 }
                 return;
             }
@@ -528,7 +527,7 @@ public class MapSplit {
                 // The referenced node is not in our data set
                 if (tile == 0) {
                     if (verbose) {
-                        LOGGER.info(String.format("Non-complete Relation %d (missing a node)", r.getId()));
+                        LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a node)", r.getId());
                     }
                     continue;
                 }
@@ -550,7 +549,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        LOGGER.info(String.format("Non-complete Relation %d (missing a way)", r.getId()));
+                        LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a way)", r.getId());
                     }
                     return;
                 }
@@ -573,7 +572,7 @@ public class MapSplit {
                 // The referenced way is not in our data set
                 if (list == null) {
                     if (verbose) {
-                        LOGGER.info(String.format("Non-complete Relation %d (missing a relation)", r.getId()));
+                        LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a relation)", r.getId());
                     }
                     return;
                 }
@@ -588,13 +587,13 @@ public class MapSplit {
                 }
                 break;
             default:
-                LOGGER.warning("Unknown member type " + m.getMemberType());
+                LOGGER.log(Level.WARNING, "Unknown member type {0}", m.getMemberType());
             }
         }
 
         // Just in case, this can happen due to silly input data :'(
         if (tileList.isEmpty()) {
-            LOGGER.warning("Ignoring empty relation");
+            LOGGER.log(Level.WARNING, "Ignoring empty relation");
             return;
         }
 
@@ -629,7 +628,7 @@ public class MapSplit {
                 case Bound:
                     break;
                 default:
-                    LOGGER.warning("Unknown member type " + m.getMemberType());
+                    LOGGER.log(Level.WARNING, "Unknown member type {0}", m.getMemberType());
                 }
             }
         }
@@ -665,7 +664,7 @@ public class MapSplit {
                     if (verbose) {
                         nCount++;
                         if ((nCount % (nmap.getSize() / 20)) == 0) {
-                            LOGGER.info(nCount + " nodes processed");
+                            LOGGER.log(Level.INFO, nCount + " nodes processed");
                         }
                     }
                 } else if (ec instanceof WayContainer) {
@@ -674,7 +673,7 @@ public class MapSplit {
                     if (verbose) {
                         wCount++;
                         if ((wCount % (wmap.getSize() / 20)) == 0) {
-                            LOGGER.info(wCount + " ways processed");
+                            LOGGER.log(Level.INFO, wCount + " ways processed");
                         }
                     }
                 } else if (ec instanceof RelationContainer) {
@@ -683,15 +682,15 @@ public class MapSplit {
                     if (verbose) {
                         rCount++;
                         if ((rCount % (rmap.getSize() / 20)) == 0) {
-                            LOGGER.info(wCount + " relations processed");
+                            LOGGER.log(Level.INFO, wCount + " relations processed");
                         }
                     }
                 } else if (ec instanceof BoundContainer) {
                     // nothing todo, we ignore bound tags
                 } else {
-                    LOGGER.warning("Unknown Element while reading");
-                    LOGGER.warning(ec.toString());
-                    LOGGER.warning(ec.getEntity().toString());
+                    LOGGER.log(Level.WARNING, "Unknown Element while reading");
+                    LOGGER.log(Level.WARNING, ec.toString());
+                    LOGGER.log(Level.WARNING, ec.getEntity().toString());
                 }
             }
 
@@ -711,8 +710,8 @@ public class MapSplit {
         while (readerThread.isAlive()) {
             try {
                 readerThread.join();
-            } catch (InterruptedException e) {
-                LOGGER.warning("readerThread interupted " + e.getMessage());
+            } catch (InterruptedException e) { // NOSONAR
+                LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
                 throw e;
             }
         }
@@ -722,7 +721,7 @@ public class MapSplit {
         }
 
         if (verbose) {
-            LOGGER.info("We have read:\n" + nCount + " nodes\n" + wCount + " ways\n" + rCount + " relations");
+            LOGGER.log(Level.INFO, "We have read:\n{0} nodes\n{1} ways\n{2}  relations", new Object[] { nCount, wCount, rCount });
         }
 
         // Second run if we are in complete-relation-mode
@@ -764,8 +763,8 @@ public class MapSplit {
             while (readerThread.isAlive()) {
                 try {
                     readerThread.join();
-                } catch (InterruptedException e) {
-                    LOGGER.warning("readerThread interupted " + e.getMessage());
+                } catch (InterruptedException e) { // NOSONAR
+                    LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
                     throw e;
                 }
             }
@@ -784,7 +783,7 @@ public class MapSplit {
      */
     private void optimize(final int nodeLimit) {
         if (verbose) {
-            LOGGER.info("Optimizing ...");
+            LOGGER.log(Level.INFO, "Optimizing ...");
         }
         long statsStart = System.currentTimeMillis();
         // count Node tile use
@@ -805,7 +804,7 @@ public class MapSplit {
                     }
                 }
             } else {
-                LOGGER.info(String.format("tiles null for %s", k));
+                LOGGER.log(Level.INFO, "tiles null for {0}", k);
             }
         }
         long nodeCount = 0;
@@ -857,8 +856,8 @@ public class MapSplit {
             tileSet.set(idx);
         }
         if (verbose) {
-            LOGGER.info(String.format("Tiles %d avg node count %d merged tiles %d", stats.size(), nodeCount / stats.size(), zoomMap.size()));
-            LOGGER.info(String.format("Stats took %d s", (System.currentTimeMillis() - statsStart) / 1000));
+            LOGGER.log(Level.INFO, "Tiles {0} avg node count {1} merged tiles {2}", new Object[] { stats.size(), nodeCount / stats.size(), zoomMap.size() });
+            LOGGER.log(Level.INFO, "Stats took {0} s", (System.currentTimeMillis() - statsStart) / 1000);
         }
     }
 
@@ -1102,7 +1101,7 @@ public class MapSplit {
             }
             int ymax = 1 << currentZoom; // for conversion to TMS schema
             if (verbose) {
-                LOGGER.info("Processing " + tileSet.cardinality() + " tiles for zoom " + currentZoom);
+                LOGGER.log(Level.INFO, "Processing {0} tiles for zoom {1}", new Object[] { tileSet.cardinality(), currentZoom });
             }
 
             int idx = 0;
@@ -1216,9 +1215,9 @@ public class MapSplit {
                             }
                             return;
                         } else {
-                            LOGGER.warning("Unknown Element while reading");
-                            LOGGER.warning(ec.toString());
-                            LOGGER.warning(ec.getEntity().toString());
+                            LOGGER.log(Level.WARNING, "Unknown Element while reading");
+                            LOGGER.log(Level.WARNING, "{0}", ec);
+                            LOGGER.log(Level.WARNING, "{0}", ec.getEntity());
                             return;
                         }
 
@@ -1272,8 +1271,8 @@ public class MapSplit {
                 while (readerThread.isAlive()) {
                     try {
                         readerThread.join();
-                    } catch (InterruptedException e) {
-                        LOGGER.warning("readerThread interupted " + e.getMessage());
+                    } catch (InterruptedException e) { // NOSONAR
+                        LOGGER.log(Level.WARNING, "readerThread interupted " + e.getMessage());
                         throw e;
                     }
                 }
@@ -1295,15 +1294,15 @@ public class MapSplit {
                         ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
                         try {
                             w.addTile(blob.toByteArray(), currentZoom, tileX, y);
-                        } catch (MBTilesWriteException e) {
-                            LOGGER.warning(String.format("%s z:%d x:%d y:%d", e.getMessage(), currentZoom, tileX, tileY));
+                        } catch (MBTilesWriteException e) { // NOSONAR
+                            LOGGER.log(Level.WARNING, "{0} z:{1} x:{2} y:{3}", new Object[] { e.getMessage(), currentZoom, tileX, tileY });
                             throw new IOException(e);
                         }
                     }
                 }
 
                 if (verbose) {
-                    LOGGER.info(String.format("Wrote %s tiles, continuing with next block of tiles", outFiles.size()));
+                    LOGGER.log(Level.INFO, "Wrote {0} tiles, continuing with next block of tiles", outFiles.size());
                 }
                 // remove mappings form this pass
                 outFiles.clear();
@@ -1334,7 +1333,7 @@ public class MapSplit {
             try {
                 w.addMetadataEntry(ent);
                 w.getConnection().commit();
-            } catch (MBTilesWriteException | SQLException e) {
+            } catch (MBTilesWriteException | SQLException e) { // NOSONAR
                 throw new IOException(e);
             }
             w.close();
@@ -1381,7 +1380,7 @@ public class MapSplit {
 
         if (polygonFile != null) {
             if (verbose) {
-                LOGGER.info(String.format("Clip tiles with polygon given by \"%s\"", polygonFile));
+                LOGGER.log(Level.INFO, "Clip tiles with polygon given by \"{0}\"", polygonFile);
             }
             split.clipPoly(polygonFile);
         }
@@ -1389,10 +1388,10 @@ public class MapSplit {
         long modified = split.modifiedTiles.cardinality();
 
         if (timing) {
-            LOGGER.info(String.format("Initial reading and datastructure setup took %d ms", time));
+            LOGGER.log(Level.INFO, "Initial reading and datastructure setup took {0} ms", time);
         }
         if (verbose) {
-            LOGGER.info(String.format("We have %d modified tiles to store.", modified));
+            LOGGER.log(Level.INFO, "We have {0} modified tiles to store.", modified);
         }
 
         if (nodeLimit > 0) {
@@ -1403,21 +1402,21 @@ public class MapSplit {
         split.store(outputBase, metadata, verbose, mbTiles);
         time = System.currentTimeMillis() - time;
         if (timing) {
-            LOGGER.info(String.format("Saving tiles took %d ms", time));
+            LOGGER.log(Level.INFO, "Saving tiles took {0} ms", time);
             long overall = System.currentTimeMillis() - startup;
-            LOGGER.info(String.format("Overall runtime: %d ms", overall));
-            LOGGER.info(String.format(" == %d min", (overall / 1000 / 60)));
+            LOGGER.log(Level.INFO, "Overall runtime: {0} ms", overall);
+            LOGGER.log(Level.INFO, " == {0} min", (overall / 1000 / 60));
         }
 
         if (verbose) {
-            LOGGER.info("HeapMap's load:");
-            LOGGER.info(String.format("Nodes    : %f", split.nmap.getLoad()));
-            LOGGER.info(String.format("Ways     : %f", split.wmap.getLoad()));
-            LOGGER.info(String.format("Relations: %f", split.rmap.getLoad()));
-            LOGGER.info("HeapMap's MissHitRatio:");
-            LOGGER.info(String.format("Nodes    : %10.6f", nratio));
-            LOGGER.info(String.format("Ways     : %10.6f", wratio));
-            LOGGER.info(String.format("Relations: %10.6f", rratio));
+            LOGGER.log(Level.INFO, "HeapMap's load:");
+            LOGGER.log(Level.INFO, "Nodes    : {0}", split.nmap.getLoad());
+            LOGGER.log(Level.INFO, "Ways     : {0}", split.wmap.getLoad());
+            LOGGER.log(Level.INFO, "Relations: {0}", split.rmap.getLoad());
+            LOGGER.log(Level.INFO, "HeapMap's MissHitRatio:");
+            LOGGER.log(Level.INFO, "Nodes    : {0}", nratio);
+            LOGGER.log(Level.INFO, "Ways     : {0}", wratio);
+            LOGGER.log(Level.INFO, "Relations: {0}", rratio);
         }
 
         return split.latestDate;
@@ -1428,10 +1427,9 @@ public class MapSplit {
      * 
      * @param args command line arguments
      * @throws IOException if IO failed
-     * @throws FileNotFoundException if the input file could not be found
-     * @throws InterruptedException if a THread was interrupted
+     * @throws InterruptedException if a Thread was interrupted
      */
-    public static void main(String[] args) throws FileNotFoundException, IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException {
 
         Date appointmentDate;
         String inputFile = null;
@@ -1452,10 +1450,10 @@ public class MapSplit {
         // set up logging
         LogManager.getLogManager().reset();
         SimpleFormatter fmt = new SimpleFormatter();
-        Handler stdoutHandler = new StreamHandler(System.out, fmt);
+        Handler stdoutHandler = new StreamHandler(System.out, fmt); // NOSONAR
         stdoutHandler.setLevel(Level.INFO);
         LOGGER.addHandler(stdoutHandler);
-        Handler stderrHandler = new StreamHandler(System.err, fmt);
+        Handler stderrHandler = new StreamHandler(System.err, fmt); // NOSONAR
         stderrHandler.setLevel(Level.WARNING);
         LOGGER.addHandler(stderrHandler);
 
@@ -1557,7 +1555,7 @@ public class MapSplit {
                         border = 1;
                     }
                 } catch (NumberFormatException e) {
-                    LOGGER.warning("Could not parse border parameter, falling back to defaults");
+                    LOGGER.log(Level.WARNING, "Could not parse border parameter, falling back to defaults");
                 }
             }
             if (line.hasOption("i")) {
@@ -1575,7 +1573,7 @@ public class MapSplit {
                 nodeLimit = Integer.valueOf(tmp);
             }
         } catch (ParseException | NumberFormatException exp) {
-            LOGGER.warning(exp.getMessage());
+            LOGGER.log(Level.WARNING, exp.getMessage());
             HelpFormatter formatter = new HelpFormatter();
             formatter.printHelp(MAPSPLIT_TAG, options);
             return;
@@ -1586,7 +1584,7 @@ public class MapSplit {
         appointmentDate = new Date(0);
 
         if (dateFile == null && verbose) {
-            LOGGER.info("No datefile given. Writing all available tiles.");
+            LOGGER.log(Level.INFO, "No datefile given. Writing all available tiles.");
         } else if (dateFile != null) {
 
             File file = new File(dateFile);
@@ -1600,26 +1598,26 @@ public class MapSplit {
                             appointmentDate = df.parse(line);
                         } catch (java.text.ParseException pe) {
                             if (verbose) {
-                                LOGGER.info("Could not parse datefile.");
+                                LOGGER.log(Level.INFO, "Could not parse datefile.");
                             }
                         }
                     }
                 }
             } else if (verbose) {
-                LOGGER.info("Datefile does not exist, writing all tiles");
+                LOGGER.log(Level.INFO, "Datefile does not exist, writing all tiles");
             }
         }
 
         if (verbose) {
-            LOGGER.info("Reading: " + inputFile);
-            LOGGER.info("Writing: " + outputBase);
+            LOGGER.log(Level.INFO, "Reading: {0}", inputFile);
+            LOGGER.log(Level.INFO, "Writing: {0}", outputBase);
         }
 
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
                 mbTiles, nodeLimit);
         if (verbose) {
-            LOGGER.info("Last changes to the map had been done on " + df.format(latest));
+            LOGGER.log(Level.INFO, "Last changes to the map had been done on {0}", df.format(latest));
         }
         if (dateFile != null) {
             try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));) {
