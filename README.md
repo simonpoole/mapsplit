@@ -20,6 +20,7 @@ To make the contents easily identifiable and usable by applications we set the f
 
 * _format_ __application/vnd.openstreetmap.data+pbf__ (note this is not a registered mime type)
 * _minzoom_ and _maxzoom_
+* _latest___date_ the timestamp of the youngest OSM element added, as the number of seconds since the UNIX epoch
 
 You should __NOT__ confuse this format with Mapbox vector tiles that use PBF encoded tiles for rendering data generated from, among
 other sources, OpenStreetMap.

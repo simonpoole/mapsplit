@@ -123,9 +123,19 @@ public class SplitTest {
                 }
 
             });
+            Map<String, String> custom = new HashMap<>();
+            md.getCustomKeyValuePairs().forEach(new Consumer<Entry<String, String>>() {
+
+                @Override
+                public void accept(Entry<String, String> e) {
+                    custom.put(e.getKey(), e.getValue());
+                }
+
+            });
             Assert.assertEquals(Const.MSF_MIME_TYPE, required.get("format"));
             Assert.assertEquals(min, r.getMinZoom());
             Assert.assertEquals(max, r.getMaxZoom());
+            Assert.assertEquals(1544288785000L, Long.parseLong(custom.get("latest_date")));
         } finally {
             if (r != null) {
                 r.close();
@@ -139,7 +149,7 @@ public class SplitTest {
      * @param z zoom
      * @param x x tile number
      * @param y y tile number in google/OSM schema
-     * @return a TIle of null if not found
+     * @return a Tile or null if not found
      */
     @Nullable
     private Tile getTile(int z, int x, int y) {

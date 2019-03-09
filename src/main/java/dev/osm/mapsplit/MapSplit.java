@@ -1324,7 +1324,8 @@ public class MapSplit {
             File file = new File(basename);
             ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion(Const.MBT_VERSION)
                     .setAttribution(Const.OSM_ATTRIBUTION).addCustomKeyValue("format", Const.MSF_MIME_TYPE)
-                    .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom));
+                    .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom))
+                    .addCustomKeyValue("latest_date", Long.toString(latestDate.getTime()));
             if (bounds != null) {
                 ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
             } else {
@@ -1617,7 +1618,6 @@ public class MapSplit {
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
                 mbTiles, nodeLimit);
-
         if (verbose) {
             LOGGER.info("Last changes to the map had been done on " + df.format(latest));
         }
