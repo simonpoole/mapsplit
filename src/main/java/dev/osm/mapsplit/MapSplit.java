@@ -445,7 +445,7 @@ public class MapSplit {
             // don't ignore missing nodes
             if (tile == 0) {
                 if (verbose) {
-                    LOGGER.log(Level.INFO, "way " + way.getId() + " missing node " + wayNode.getNodeId());
+                    LOGGER.log(Level.INFO, "way {0} missing node {1}", new Object[] { way.getId(), wayNode.getNodeId() });
                 }
                 return;
             }
