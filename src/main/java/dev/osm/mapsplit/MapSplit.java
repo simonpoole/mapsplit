@@ -63,6 +63,7 @@ import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.RelationContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.WayContainer;
 import org.openstreetmap.osmosis.core.domain.v0_6.Bound;
+import org.openstreetmap.osmosis.core.domain.v0_6.Entity;
 import org.openstreetmap.osmosis.core.domain.v0_6.Node;
 import org.openstreetmap.osmosis.core.domain.v0_6.Relation;
 import org.openstreetmap.osmosis.core.domain.v0_6.RelationMember;
@@ -130,6 +131,19 @@ public class MapSplit {
 
     // new zoom levels for tiles during optimization
     private final Map<Integer, Byte> zoomMap = new HashMap<>();
+
+    class DataFormatException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Construct a new exception indicating data format errors
+         * 
+         * @param message the message
+         */
+        public DataFormatException(@NotNull String message) {
+            super(message);
+        }
+    }
 
     /**
      * Construct a new MapSplit instance
@@ -642,10 +656,11 @@ public class MapSplit {
      * Setup the OSM object to tiles mappings
      * 
      * @param verbose verbose output if true
+     * @param metadata we want to write metadata if true
      * @throws IOException if reading the input caused an issue
      * @throws InterruptedException if a Thread was interrupted
      */
-    public void setup(final boolean verbose) throws IOException, InterruptedException {
+    public void setup(final boolean verbose, final boolean metadata) throws IOException, InterruptedException {
 
         this.verbose = verbose;
 
@@ -656,33 +671,47 @@ public class MapSplit {
                 complete = true;
             }
 
+            /**
+             * Throw an exception if the metadata flag is set but we are reading data without any
+             * 
+             * @param e the OSM object to check
+             */
+            void checkMetadata(@NotNull Entity e) {
+                if (metadata && (e.getVersion() == -1)) { // this doesn't seem to be really documented
+                    throw new DataFormatException(String.format("%s %d is missing a valid version and metadata flag is set", e.getType(), e.getId()));
+                }
+            }
+
             @Override
             public void process(EntityContainer ec) {
                 if (ec instanceof NodeContainer) {
                     Node n = ((NodeContainer) ec).getEntity();
+                    checkMetadata(n);
                     addNodeToMap(n, n.getLatitude(), n.getLongitude());
                     if (verbose) {
                         nCount++;
                         if ((nCount % (nmap.getSize() / 20)) == 0) {
-                            LOGGER.log(Level.INFO, nCount + " nodes processed");
+                            LOGGER.log(Level.INFO, "{0} nodes processed", nCount);
                         }
                     }
                 } else if (ec instanceof WayContainer) {
                     Way w = ((WayContainer) ec).getEntity();
+                    checkMetadata(w);
                     addWayToMap(w);
                     if (verbose) {
                         wCount++;
                         if ((wCount % (wmap.getSize() / 20)) == 0) {
-                            LOGGER.log(Level.INFO, wCount + " ways processed");
+                            LOGGER.log(Level.INFO, "{0} ways processed", wCount);
                         }
                     }
                 } else if (ec instanceof RelationContainer) {
                     Relation r = ((RelationContainer) ec).getEntity();
+                    checkMetadata(r);
                     addRelationToMap(r);
                     if (verbose) {
                         rCount++;
                         if ((rCount % (rmap.getSize() / 20)) == 0) {
-                            LOGGER.log(Level.INFO, wCount + " relations processed");
+                            LOGGER.log(Level.INFO, "{0} relations processed", rCount);
                         }
                     }
                 } else if (ec instanceof BoundContainer) {
@@ -1317,7 +1346,7 @@ public class MapSplit {
             }
         }
 
-        // Add metadata parts
+        // Add MBTiles metadata parts
         if (mbTiles) {
             MetadataEntry ent = new MetadataEntry();
             File file = new File(basename);
@@ -1371,7 +1400,7 @@ public class MapSplit {
         MapSplit split = new MapSplit(zoom, appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations);
 
         long time = System.currentTimeMillis();
-        split.setup(verbose);
+        split.setup(verbose, metadata);
         time = System.currentTimeMillis() - time;
 
         double nratio = split.nmap.getMissHitRatio();
