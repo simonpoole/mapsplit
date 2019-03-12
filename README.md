@@ -55,7 +55,8 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
     -f,--maxfiles <arg>   maximum number of open files at a time
     -h,--help             this help
     -i,--input <arg>      a file in OSM pbf format
-    -m,--metadata         store metadata in tile-files (version, timestamp)
+    -m,--metadata         store metadata in the tiles (version, timestamp), 
+                          if the input file is missing the metadata abort
     -o,--output <arg>     if creating a MBTiles file this is the name of the
                           file, otherwise this is the base name of all tiles
                           that will be written. The filename may contain '%x'

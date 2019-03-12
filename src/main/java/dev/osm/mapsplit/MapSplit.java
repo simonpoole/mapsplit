@@ -1490,7 +1490,8 @@ public class MapSplit {
         Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();
         Option verboseOption = Option.builder("v").longOpt("verbose").desc("verbose information during processing").build();
         Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
-        Option metadataOption = Option.builder("m").longOpt("metadata").desc("store metadata in tile-files (version, timestamp)").build();
+        Option metadataOption = Option.builder("m").longOpt("metadata")
+                .desc("store metadata in the tiles (version, timestamp), if the input file is missing the metadata abort").build();
         Option completeMPOption = Option.builder("c").longOpt("complete").desc("store complete data for multi polygons").build();
         Option mbTilesOption = Option.builder("M").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
         Option maxFilesOption = Option.builder("f").longOpt("maxfiles").hasArg().desc("maximum number of open files at a time").build();
