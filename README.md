@@ -75,9 +75,9 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
 
 ### Example
 
-    java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvM -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -O 2000
+    java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvMm -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -O 2000
 
- Will generate a 211MB large MBTile format MapSplit file with all the data for the Iraq in a couple of minutes.
+ Will generate a 211MB large MBTile format MapSplit file with all the data, including metadata for the Iraq in a couple of minutes.
  
 ### Testing
 
