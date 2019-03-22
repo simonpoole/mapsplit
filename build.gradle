@@ -1,0 +1,55 @@
+plugins {
+    id "org.sonarqube" version "2.7"
+}
+
+apply plugin: 'java'
+apply plugin: "jacoco"
+apply plugin: 'eclipse'
+
+version = '0.2.0'
+
+repositories {
+    jcenter()
+    mavenCentral()
+    maven { url 'http://nexus.onebusaway.org/nexus/content/repositories/public/' }
+    maven { url 'https://dl.bintray.com/content/simonpoole/div' }
+    //    flatDir {
+    //        dirs 'lib'
+    //    }
+}
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'mapsplit fat jar',
+        'Implementation-Version': "${project.version}",
+        'Main-Class': 'dev.osm.mapsplit.MapSplit'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+fatJar.group = 'build'
+
+sonarqube {
+    properties {
+        property "sonar.sourceEncoding","UTF-8"
+        property "sonar.java.binaries", "build/classes/java/main/"
+        property "sonar.jacoco.reportPaths","build/jacoco/test.exec"
+    }
+}
+
+test{
+    maxHeapSize = "6G"
+}
+
+dependencies {
+    compile 'org.openstreetmap.osmosis:osmosis-core:0.47'
+    compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
+    compile 'com.google.protobuf:protobuf-java:3.6.1'
+    compile 'commons-cli:commons-cli:1.4'
+    compile 'org.imintel:mbtiles4j:1.1.0'
+    compile 'org.jetbrains:annotations:15.0'
+    compile 'com.zaxxer:SparseBitSet:1.1'
+    testCompile 'junit:junit:4.12'
+}
