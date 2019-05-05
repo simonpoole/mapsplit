@@ -43,7 +43,6 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import java.util.logging.StreamHandler;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -734,6 +733,9 @@ public class MapSplit {
             }
         });
 
+        if (verbose) {
+            LOGGER.log(Level.INFO, "Initial pass started");
+        }
         Thread readerThread = new Thread(reader);
         readerThread.start();
         while (readerThread.isAlive()) {
@@ -1123,8 +1125,8 @@ public class MapSplit {
         Bound bounds = null;
         int minZoom = zoom;
         for (Entry<Integer, UnsignedSparseBitSet> omt : optimizedModifiedTiles.entrySet()) {
-            UnsignedSparseBitSet tileSet = omt.getValue();
-            int currentZoom = omt.getKey();
+            final UnsignedSparseBitSet tileSet = omt.getValue();
+            final int currentZoom = omt.getKey();
             if (currentZoom < minZoom) {
                 minZoom = currentZoom;
             }
@@ -1479,10 +1481,10 @@ public class MapSplit {
         // set up logging
         LogManager.getLogManager().reset();
         SimpleFormatter fmt = new SimpleFormatter();
-        Handler stdoutHandler = new StreamHandler(System.out, fmt); // NOSONAR
+        Handler stdoutHandler = new FlushStreamHandler(System.out, fmt) ; // NOSONAR
         stdoutHandler.setLevel(Level.INFO);
         LOGGER.addHandler(stdoutHandler);
-        Handler stderrHandler = new StreamHandler(System.err, fmt); // NOSONAR
+        Handler stderrHandler = new FlushStreamHandler(System.err, fmt); // NOSONAR
         stderrHandler.setLevel(Level.WARNING);
         LOGGER.addHandler(stderrHandler);
 
