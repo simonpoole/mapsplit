@@ -689,7 +689,7 @@ public class MapSplit {
                     addNodeToMap(n, n.getLatitude(), n.getLongitude());
                     if (verbose) {
                         nCount++;
-                        if ((nCount % (nmap.getSize() / 20)) == 0) {
+                        if ((nCount % (nmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} nodes processed", nCount);
                         }
                     }
@@ -699,7 +699,7 @@ public class MapSplit {
                     addWayToMap(w);
                     if (verbose) {
                         wCount++;
-                        if ((wCount % (wmap.getSize() / 20)) == 0) {
+                        if ((wCount % (wmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} ways processed", wCount);
                         }
                     }
@@ -709,7 +709,7 @@ public class MapSplit {
                     addRelationToMap(r);
                     if (verbose) {
                         rCount++;
-                        if ((rCount % (rmap.getSize() / 20)) == 0) {
+                        if ((rCount % (rmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} relations processed", rCount);
                         }
                     }
@@ -1481,7 +1481,7 @@ public class MapSplit {
         // set up logging
         LogManager.getLogManager().reset();
         SimpleFormatter fmt = new SimpleFormatter();
-        Handler stdoutHandler = new FlushStreamHandler(System.out, fmt) ; // NOSONAR
+        Handler stdoutHandler = new FlushStreamHandler(System.out, fmt); // NOSONAR
         stdoutHandler.setLevel(Level.INFO);
         LOGGER.addHandler(stdoutHandler);
         Handler stderrHandler = new FlushStreamHandler(System.err, fmt); // NOSONAR

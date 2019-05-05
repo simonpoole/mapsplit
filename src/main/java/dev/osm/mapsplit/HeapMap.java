@@ -36,21 +36,26 @@ public class HeapMap implements OsmMap {
     private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
     private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    private static final int  TILE_EXT_SHIFT   = 24;
-    private static final long TILE_EXT_MASK    = 1l << TILE_EXT_SHIFT;
-    private static final long TILE_MARKER_MASK = 0xFFFFFFl;
-    private static final int  NEIGHBOUR_SHIFT  = TILE_EXT_SHIFT + 1;
-    private static final long NEIGHBOUR_MASK   = 3l << NEIGHBOUR_SHIFT;
+    private static final int   TILE_EXT_SHIFT      = 24;
+    private static final long  TILE_EXT_MASK       = 1l << TILE_EXT_SHIFT;
+    private static final long  TILE_MARKER_MASK    = 0xFFFFFFl;
+    private static final int   NEIGHBOUR_SHIFT     = TILE_EXT_SHIFT + 1;
+    private static final long  NEIGHBOUR_MASK      = 3l << NEIGHBOUR_SHIFT;
+    private static final float DEFAULT_FILL_FACTOR = 0.75f;
 
-    private int    size;
+    private int capacity;
+
+    private int    size = 0;
     private long[] keys;
     private long[] values;
 
     private int     extendedBuckets = 0;
     private int[][] extendedSet     = new int[1000][];
 
-    private long hits   = 0;
-    private long misses = 0;
+    private long  hits       = 0;
+    private long  misses     = 0;
+    private float fillFactor = DEFAULT_FILL_FACTOR;
+    private int   threshold;
 
     class HeapMapError extends Error {
         private static final long serialVersionUID = 1L;
@@ -68,17 +73,29 @@ public class HeapMap implements OsmMap {
     /**
      * Construct a new map
      * 
-     * @param size the (fixed) size of the map
+     * @param capacity the (fixed) capacity of the map
      */
-    public HeapMap(int size) {
-        this.size = size;
-        keys = new long[size];
-        values = new long[size];
+    public HeapMap(int capacity) {
+        this(capacity, DEFAULT_FILL_FACTOR);
+    }
+
+    /**
+     * Construct a new map
+     * 
+     * @param capacity the (fixed) capacity of the map
+     * @param fill fill factor to use
+     */
+    public HeapMap(int capacity, float fill) {
+        this.capacity = capacity;
+        keys = new long[capacity];
+        values = new long[capacity];
+        fillFactor = fill;
+        threshold = (int) (capacity * fillFactor);
     }
 
     @Override
-    public int getSize() {
-        return size;
+    public int getCapacity() {
+        return capacity;
     }
 
     @Override
@@ -118,14 +135,18 @@ public class HeapMap implements OsmMap {
         }
         int count = 0;
 
-        int bucket = (int) (KEY(key) % size);
+        int bucket = (int) (KEY(key) % capacity);
         long value = ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT | ((long) neighbours) << NEIGHBOUR_SHIFT;
 
         while (true) {
             if (values[bucket] == 0) {
                 keys[bucket] = key;
                 values[bucket] = value;
+                size++;
                 return;
+            }
+            if (size > threshold) {
+                throw new HeapMapError("HashMap filled up, increase the (static) capacity!");
             }
             if (count == 0) {
                 // mark bucket as "overflow bucket"
@@ -133,17 +154,13 @@ public class HeapMap implements OsmMap {
             }
             bucket++;
             count++;
-            bucket = bucket % size;
-
-            if (count >= size) {
-                throw new HeapMapError("HashMap filled up, increase the (static) size!");
-            }
+            bucket = bucket % capacity;
         }
     }
 
     private int getBucket(long key) {
         int count = 0;
-        int bucket = (int) (KEY(key) % size);
+        int bucket = (int) (KEY(key) % capacity);
 
         while (true) {
             if (values[bucket] != 0l) {
@@ -165,7 +182,7 @@ public class HeapMap implements OsmMap {
             misses++;
             bucket++;
             count++;
-            bucket = bucket % size;
+            bucket = bucket % capacity;
         }
     }
 
@@ -443,12 +460,12 @@ public class HeapMap implements OsmMap {
     @Override
     public double getLoad() {
         int count = 0;
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < capacity; i++) {
             if (values[i] != 0) {
                 count++;
             }
         }
-        return ((double) count) / ((double) size);
+        return ((double) count) / ((double) capacity);
     }
 
     /*

@@ -107,12 +107,12 @@ public interface OsmMap {
     public int neighbour(long value);
 
     /**
-     * return the size of the map, i.e. the max number of elements that would fit in that map
+     * return the capacity of the map, i.e. the max number of elements that would fit in that map
      * 
-     * @return the size of this map
+     * @return the capacity of this map
      */
-    public int getSize();
-    
+    public int getCapacity();
+
     /**
      * Return all the keys
      * 
