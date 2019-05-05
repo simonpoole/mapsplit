@@ -114,7 +114,7 @@ public class SplitTest {
         try {
             r = new MBTilesReader(new File(MSF_OUTPUT_FILENAME));
             MetadataEntry md = r.getMetadata();
-            Map<String, String> required = new HashMap<>();
+            final Map<String, String> required = new HashMap<>();
             md.getRequiredKeyValuePairs().forEach(new Consumer<Entry<String, String>>() {
 
                 @Override
@@ -123,7 +123,7 @@ public class SplitTest {
                 }
 
             });
-            Map<String, String> custom = new HashMap<>();
+            final Map<String, String> custom = new HashMap<>();
             md.getCustomKeyValuePairs().forEach(new Consumer<Entry<String, String>>() {
 
                 @Override
