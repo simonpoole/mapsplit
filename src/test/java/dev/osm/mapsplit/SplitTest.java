@@ -21,6 +21,8 @@ public class SplitTest {
     private static final Logger LOGGER = Logger.getLogger(SplitTest.class.getName());
 
     private static final String MSF_OUTPUT_FILENAME = "build/tmp/tiles/liechtenstein.msf";
+    private static final String MSF_OUTPUT_DIR      = "build/tmp/tiles/";
+    private static final String TEST_DATA_PBF       = "test-data/liechtenstein-latest.osm.pbf";
 
     /**
      * Pre-test setup
@@ -29,6 +31,8 @@ public class SplitTest {
     public void setup() {
         File output = new File(MSF_OUTPUT_FILENAME);
         output.delete();
+        File path = new File(MSF_OUTPUT_DIR);
+        path.mkdirs();
     }
 
     /**
@@ -39,8 +43,7 @@ public class SplitTest {
         try {
             File output = new File(MSF_OUTPUT_FILENAME);
             Assert.assertFalse(output.exists());
-            MapSplit.main(new String[] { "-mtvM", "-i", "test-data/liechtenstein-latest.osm.pbf", "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16", "-O",
-                    "2000" });
+            MapSplit.main(new String[] { "-mtvM", "-i", TEST_DATA_PBF, "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16", "-O", "2000" });
             checkMetadata(12, 16);
             Tile t = getTile(15, 17250, 11506);
             Assert.assertNotNull(t);
@@ -57,8 +60,7 @@ public class SplitTest {
         try {
             File output = new File(MSF_OUTPUT_FILENAME);
             Assert.assertFalse(output.exists());
-            MapSplit.main(new String[] { "-cmtvM", "-i", "test-data/liechtenstein-latest.osm.pbf", "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16", "-O",
-                    "2000" });
+            MapSplit.main(new String[] { "-cmtvM", "-i", TEST_DATA_PBF, "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16", "-O", "2000" });
             checkMetadata(12, 16);
             Tile t = getTile(16, 34501, 23013);
             Assert.assertNotNull(t);
@@ -75,7 +77,7 @@ public class SplitTest {
         try {
             File output = new File(MSF_OUTPUT_FILENAME);
             Assert.assertFalse(output.exists());
-            MapSplit.main(new String[] { "-mtvM", "-i", "test-data/liechtenstein-latest.osm.pbf", "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16" });
+            MapSplit.main(new String[] { "-mtvM", "-i", TEST_DATA_PBF, "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16" });
             checkMetadata(16, 16);
             Tile t = getTile(16, 34496, 23000);
             Assert.assertNotNull(t); // should exist, is outside of Vaduz
@@ -92,8 +94,7 @@ public class SplitTest {
         try {
             File output = new File(MSF_OUTPUT_FILENAME);
             Assert.assertFalse(output.exists());
-            MapSplit.main(new String[] { "-mtvM", "-p", "test-data/vaduz.poly", "-i", "test-data/liechtenstein-latest.osm.pbf", "-o", MSF_OUTPUT_FILENAME, "-f",
-                    "2000", "-z", "16" });
+            MapSplit.main(new String[] { "-mtvM", "-p", "test-data/vaduz.poly", "-i", TEST_DATA_PBF, "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16" });
             checkMetadata(16, 16);
             Tile t = getTile(16, 33972, 23225);
             Assert.assertNull(t); // shouldn't exist, is outside of Vaduz
