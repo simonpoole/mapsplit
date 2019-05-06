@@ -36,12 +36,13 @@ public class HeapMap implements OsmMap {
     private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
     private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    private static final int   TILE_EXT_SHIFT      = 24;
-    private static final long  TILE_EXT_MASK       = 1l << TILE_EXT_SHIFT;
-    private static final long  TILE_MARKER_MASK    = 0xFFFFFFl;
-    private static final int   NEIGHBOUR_SHIFT     = TILE_EXT_SHIFT + 1;
-    private static final long  NEIGHBOUR_MASK      = 3l << NEIGHBOUR_SHIFT;
-    private static final float DEFAULT_FILL_FACTOR = 0.75f;
+    private static final int   TILE_EXT_SHIFT            = 24;
+    private static final long  TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
+    private static final long  TILE_MARKER_MASK          = 0xFFFFFFl;
+    private static final int   NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
+    private static final long  NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
+    private static final float DEFAULT_FILL_FACTOR       = 0.75f;
+    private static final int   INITIAL_EXTENDED_SET_SIZE = 1000;
 
     private int capacity;
 
@@ -50,7 +51,7 @@ public class HeapMap implements OsmMap {
     private long[] values;
 
     private int     extendedBuckets = 0;
-    private int[][] extendedSet     = new int[1000][];
+    private int[][] extendedSet     = new int[INITIAL_EXTENDED_SET_SIZE][];
 
     private long  hits       = 0;
     private long  misses     = 0;
@@ -158,6 +159,12 @@ public class HeapMap implements OsmMap {
         }
     }
 
+    /**
+     * Get the bucket index for the value
+     * 
+     * @param key the key
+     * @return the index of -1 if not found
+     */
     private int getBucket(long key) {
         int count = 0;
         int bucket = (int) (KEY(key) % capacity);
@@ -202,6 +209,14 @@ public class HeapMap implements OsmMap {
         return values[bucket];
     }
 
+    /**
+     * Merge two int arrays, removing dupes
+     * 
+     * @param old the original array
+     * @param add the additional array
+     * @param len the additional number of ints to allocate
+     * @return the new array
+     */
     private int[] merge(@NotNull int[] old, @NotNull int[] add, int len) {
         int curLen = old.length;
         int[] tmp = new int[curLen + len];
@@ -229,6 +244,12 @@ public class HeapMap implements OsmMap {
         return result;
     }
 
+    /**
+     * Add tiles to the extended tile list for an element
+     * 
+     * @param index the index in to the array of the tile lists
+     * @param tiles a List containing the tile numbers
+     */
     private void appendNeighbours(int index, @NotNull Collection<Long> tiles) {
         int[] old = extendedSet[index];
         int[] set = new int[4 * tiles.size()];
@@ -255,6 +276,12 @@ public class HeapMap implements OsmMap {
         extendedSet[index] = result;
     }
 
+    /**
+     * Start using the list of additional tiles instead of the bits directly in the value
+     * 
+     * @param bucket the index of the value
+     * @param tiles the List of additional tiles
+     */
     private void extendToNeighbourSet(int bucket, @NotNull Collection<Long> tiles) {
         long val = values[bucket];
 
@@ -394,6 +421,13 @@ public class HeapMap implements OsmMap {
         return result;
     }
 
+    /**
+     * Return a list with the contents of an int array
+     * 
+     * @param set the array
+     * @return a List of Integer
+     */
+    @NotNull
     private List<Integer> asList(@NotNull int[] set) {
         List<Integer> result = new ArrayList<>();
 

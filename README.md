@@ -82,4 +82,8 @@ Will generate a 211MB large MBTile format MapSplit file with all the data, inclu
 ### Testing
 
 The current tests are rather superficial and need to be improved, the high coverage numbers are misleading.
+
+### Limitations
+
+The data structures used by mapsplit to map OSM objects to tiles are limited to to the maximum size of a JAVA array, a bit less than 2'147'483'647 (nodes, ways and relations separately), further the maximum number of objects that can have an extended tile list (that is essentially anything more than just the immediate neighbor tiles) is limited to a bit more than 8 million.
  
