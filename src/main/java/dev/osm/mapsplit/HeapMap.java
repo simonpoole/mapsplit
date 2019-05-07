@@ -10,6 +10,8 @@ package dev.osm.mapsplit;
  * 
  * You should have received a copy of the CC0 Public Domain Dedication along with this software. If not, see
  * <http://creativecommons.org/publicdomain/zero/1.0/>.
+ * 
+ * Further work by Simon Poole 2018/19
  */
 
 import java.util.ArrayList;
@@ -19,9 +21,35 @@ import java.util.TreeSet;
 
 import org.jetbrains.annotations.NotNull;
 
+// @formatter:off
 /**
  * An HashMap in Heap memory, optimized for size to use in OSM
+ * 
+ * Structure of the values:
+ * 
+ *     6                 4                   3    2 2 22
+ *     3                 8                   2    8 7 54
+ *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY uuuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
+ *
+ *     X - tile number
+ *     Y - tile number
+ *     u - unused
+ *     N - bits indicating immediate "neigbours"
+ *     E - extended "neighbour" list used
+ *     n - bits for "short" neighbour index, in long list mode used as index
+ *
+ *     Tiles indexed in "short" list (T original tile)
+ *           -  - 
+ *           2  1  0  1  2
+ *       
+ *     -2    0  1  2  3  4
+ *     -1    5  6  7  8  9
+ *      0   10 11  T 12 13
+ *      1   14 15 16 17 18
+ *      2   19 20 21 22 23
+ * 
  */
+// @formatter:on
 @SuppressWarnings("unchecked")
 public class HeapMap implements OsmMap {
 
