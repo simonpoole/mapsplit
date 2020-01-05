@@ -82,6 +82,10 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
 
 Will generate a 211MB large MBTile format MapSplit file with all the data, including metadata for the Iraq in a couple of minutes.
  
+### Building
+
+We use gradle for building, no other system is currently supported.
+
 ### Testing
 
 The current tests are rather superficial and need to be improved, the high coverage numbers are misleading.
