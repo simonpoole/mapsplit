@@ -86,6 +86,8 @@ Will generate a 211MB large MBTile format MapSplit file with all the data, inclu
 
 We use gradle for building, no other system is currently supported.
 
+* Build standalone jar file: `./gradlew fatJar` - the jar file can afterwards be found in `build/libs`.
+
 ### Testing
 
 The current tests are rather superficial and need to be improved, the high coverage numbers are misleading.
