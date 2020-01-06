@@ -82,7 +82,12 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
 
         java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvMm -i iraq-latest.osm.pbf -o iraq.msf -f 2000 -z 16 -O 2000
 
- 
+* Generate a MBTile format MapSplit file with all the data and metadata for the city of Zurich that is suitable for use with [Vespucci](https://vespucci.io/):
+
+        java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvMm -i switzerland-padded.osm.pbf -o zurich.msf -f 2000 -z 15 -O 2000 -s 200000000,20000000,2000000 -p Zurich_AL8-AL8.poly
+
+  The `.poly` file with the boundaries can for example be retrieved from the [OSM Admin Boundaries](https://wambachers-osm.website/boundaries/) service.
+
 ### Building
 
 We use gradle for building, no other system is currently supported.
