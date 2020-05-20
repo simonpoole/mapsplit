@@ -87,6 +87,10 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
         java -Xmx6G -jar mapsplit-all-0.2.0.jar -tvMm -i switzerland-padded.osm.pbf -o zurich.msf -f 2000 -z 15 -O 2000 -s 200000000,20000000,2000000 -p Zurich_AL8-AL8.poly
 
   The `.poly` file with the boundaries can for example be retrieved from the [OSM Admin Boundaries](https://wambachers-osm.website/boundaries/) service.
+  
+### Generated mapsplit files for selected regions
+
+Daily updated mapsplit files can be found here [https://mapsplit.poole.ch/](https://mapsplit.poole.ch/).
 
 ### Building
 
