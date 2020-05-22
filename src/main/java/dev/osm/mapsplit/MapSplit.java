@@ -105,6 +105,9 @@ public class MapSplit {
     // verbose outpu
     private boolean verbose = false;
 
+    private final boolean completeRelations;
+    private final boolean completeAreas;
+
     // the hashmap for all nodes in the osm map
     private final OsmMap nmap;
 
@@ -158,17 +161,22 @@ public class MapSplit {
      * @param inputFile the input PBF file
      * @param completeRelations include all relation member objects in every tile the relation is present in (very
      *            expensive)
+     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in (very
+     *            expensive)
      */
-    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations) {
+    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile,
+            boolean completeRelations, boolean completeAreas) {
         this.zoom = zoom;
         this.border = border;
         this.input = inputFile;
         this.appointmentDate = appointmentDate;
         this.maxFiles = maxFiles;
+        this.completeRelations = completeRelations;
+        this.completeAreas = completeAreas;
         nmap = new HeapMap(mapSizes[0]);
         wmap = new HeapMap(mapSizes[1]);
         rmap = new HeapMap(mapSizes[2]);
-        if (completeRelations) {
+        if (completeRelations || completeAreas) {
             extraWayMap = new HashMap<>();
         }
 
@@ -633,9 +641,8 @@ public class MapSplit {
         // update map so that the relation knows in which tiles it is needed
         rmap.update(r.getId(), tileList);
 
-        if (extraWayMap != null) {
-            // only add members to all the tiles if we are in
-            // completeRelations mode
+        if (completeRelations || (completeAreas && hasTag(r, "type", "multipolygon"))) {
+            // only add members to all the tiles if the appropriate option is enabled
             for (RelationMember m : r.getMembers()) {
                 switch (m.getMemberType()) {
                 case Node:
@@ -657,13 +664,17 @@ public class MapSplit {
         }
     }
 
+    private static boolean hasTag(Entity e, String key, String value) {
+        return e.getTags().stream().anyMatch(tag -> tag.getKey().equals(key) && tag.getValue().equals(value));
+    }
+
     int nCount = 0;
     int wCount = 0;
     int rCount = 0;
 
     /**
      * Setup the OSM object to tiles mappings
-     * 
+     *
      * @param verbose verbose output if true
      * @param metadata we want to write metadata if true
      * @throws IOException if reading the input caused an issue
@@ -1417,6 +1428,7 @@ public class MapSplit {
      * @param timing output timing information
      * @param completeRelations include all relation member objects in every tile the relation is present in (very
      *            expensive)
+     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in
      * @param mbTiles generate a MBTiles format SQLite file instead of individual tiles
      * @param nodeLimit if > 0 optimize tiles so that they contain at least nodeLimit Nodes
      * @return the "last changed" date
@@ -1424,12 +1436,13 @@ public class MapSplit {
      * @throws IOException if IO went wrong
      */
     private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
-            double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean mbTiles, int nodeLimit)
+            double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean completeAreas,
+            boolean mbTiles, int nodeLimit)
             throws IOException, InterruptedException {
 
         long startup = System.currentTimeMillis();
 
-        MapSplit split = new MapSplit(zoom, appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations);
+        MapSplit split = new MapSplit(zoom, appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations, completeAreas);
 
         long time = System.currentTimeMillis();
         split.setup(verbose, metadata);
@@ -1500,6 +1513,7 @@ public class MapSplit {
         boolean timing = false;
         boolean metadata = false;
         boolean completeRelations = false;
+        boolean completeAreas = false;
         boolean mbTiles = false;
         String dateFile = null;
         int[] mapSizes = new int[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
@@ -1524,7 +1538,8 @@ public class MapSplit {
         Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
         Option metadataOption = Option.builder("m").longOpt("metadata")
                 .desc("store metadata in the tiles (version, timestamp), if the input file is missing the metadata abort").build();
-        Option completeMPOption = Option.builder("c").longOpt("complete").desc("store complete data for multi polygons").build();
+        Option completeRelationOption = Option.builder("c").longOpt("complete").desc("store complete data for all relations").build();
+        Option completeAreaOption = Option.builder("C").longOpt("complete-areas").desc("store complete data for multi polygons").build();
         Option mbTilesOption = Option.builder("M").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
         Option maxFilesOption = Option.builder("f").longOpt("maxfiles").hasArg().desc("maximum number of open files at a time").build();
         Option borderOption = Option.builder("b").longOpt("border").hasArg()
@@ -1553,7 +1568,8 @@ public class MapSplit {
         options.addOption(verboseOption);
         options.addOption(timingOption);
         options.addOption(metadataOption);
-        options.addOption(completeMPOption);
+        options.addOption(completeRelationOption);
+        options.addOption(completeAreaOption);
         options.addOption(mbTilesOption);
         options.addOption(maxFilesOption);
         options.addOption(borderOption);
@@ -1585,6 +1601,9 @@ public class MapSplit {
             }
             if (line.hasOption("c")) {
                 completeRelations = true;
+            }
+            if (line.hasOption("C")) {
+                completeAreas = true;
             }
             if (line.hasOption("M")) {
                 mbTiles = true;
@@ -1677,7 +1696,7 @@ public class MapSplit {
 
         // Actually run the splitter...
         Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
-                mbTiles, nodeLimit);
+                completeAreas, mbTiles, nodeLimit);
         if (verbose) {
             LOGGER.log(Level.INFO, "Last changes to the map had been done on {0}", df.format(latest));
         }
