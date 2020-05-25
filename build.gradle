@@ -1,7 +1,21 @@
+
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "gradle.plugin.com.github.breadmoirai:github-release:2.2.11"
+    }
+}
+
 plugins {
     id "org.sonarqube" version "2.7"
 }
 
+apply plugin: "com.github.breadmoirai.github-release"
 apply plugin: 'java'
 apply plugin: "jacoco"
 apply plugin: 'eclipse'
@@ -16,6 +30,10 @@ repositories {
     //    flatDir {
     //        dirs 'lib'
     //    }
+}
+
+ext {
+    github_token = System.getenv('GITHUB_TOKEN')
 }
 
 //create a single Jar with all dependencies
@@ -52,4 +70,15 @@ dependencies {
     compile 'org.jetbrains:annotations:15.0'
     compile 'com.zaxxer:SparseBitSet:1.1'
     testCompile 'junit:junit:4.12'
+}
+
+githubRelease {
+    token "${github_token}"
+    owner "simonpoole"
+    tagName "${version}"
+    releaseName "${version}"
+    body ""
+    FilenameFilter filter = { dir, filename -> filename.contains(version) }
+    releaseAssets = jar.destinationDir.listFiles filter
+    overwrite true
 }
