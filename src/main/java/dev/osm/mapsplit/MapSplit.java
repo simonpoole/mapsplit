@@ -131,6 +131,9 @@ public class MapSplit {
     // new zoom levels for tiles during optimization
     private final Map<Integer, Byte> zoomMap = new HashMap<>();
 
+    // relations with potential forward references
+    private final Set<Relation> postProcessRelations = new HashSet<>();
+
     class DataFormatException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
@@ -245,6 +248,7 @@ public class MapSplit {
      * @param tiles the current tiles
      */
     private void checkAndFill(@NotNull Collection<Long> tiles) {
+
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -527,20 +531,24 @@ public class MapSplit {
         boolean modified = r.getTimestamp().after(appointmentDate);
         Collection<Long> tileList = new TreeSet<>();
 
+        boolean nodeWarned = false; // suppress multiple warnings about missing Nodes
+        boolean wayWarned = false; // suppress multiple warnings about missing Ways
+        boolean relationWarned = false; // suppress multiple warnings about missing Relations
+
         if (r.getTimestamp().after(latestDate)) {
             latestDate = r.getTimestamp();
         }
 
         for (RelationMember m : r.getMembers()) {
-
             switch (m.getMemberType()) {
             case Node:
                 long tile = nmap.get(m.getMemberId());
 
                 // The referenced node is not in our data set
                 if (tile == 0) {
-                    if (verbose) {
+                    if (verbose && !nodeWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a node)", r.getId());
+                        nodeWarned = true;
                     }
                     continue;
                 }
@@ -561,10 +569,11 @@ public class MapSplit {
 
                 // The referenced way is not in our data set
                 if (list == null) {
-                    if (verbose) {
+                    if (verbose && !wayWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a way)", r.getId());
+                        wayWarned = true;
                     }
-                    return;
+                    continue;
                 }
 
                 if (modified) {
@@ -582,12 +591,14 @@ public class MapSplit {
             case Relation:
                 list = rmap.getAllTiles(m.getMemberId());
 
-                // The referenced way is not in our data set
+                // The referenced relation is not in our data set
                 if (list == null) {
-                    if (verbose) {
+                    if (verbose && !relationWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a relation)", r.getId());
+                        relationWarned = true;
                     }
-                    return;
+                    postProcessRelations.add(r);
+                    continue;
                 }
 
                 if (modified) {
@@ -595,6 +606,7 @@ public class MapSplit {
                         modifiedTiles.set(i);
                     }
                 }
+
                 for (int i : list) {
                     tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
                 }
@@ -606,13 +618,11 @@ public class MapSplit {
 
         // Just in case, this can happen due to silly input data :'(
         if (tileList.isEmpty()) {
-            LOGGER.log(Level.WARNING, "Ignoring empty relation");
+            LOGGER.log(Level.WARNING, "Ignoring relation with no elements in tiles");
             return;
         }
 
-        if (tileList.size() >= 8) {
-            checkAndFill(tileList);
-        }
+        // no need to fill tile list here as that will have already happened for any element with geometry
 
         long val = tileList.iterator().next();
         int tx = rmap.tileX(val);
@@ -752,7 +762,27 @@ public class MapSplit {
         }
 
         if (verbose) {
-            LOGGER.log(Level.INFO, "We have read:\n{0} nodes\n{1} ways\n{2}  relations", new Object[] { nCount, wCount, rCount });
+            LOGGER.log(Level.INFO, "We have read:\n{0} nodes\n{1} ways\n{2} relations", new Object[] { nCount, wCount, rCount });
+        }
+
+        if (!postProcessRelations.isEmpty()) {
+            int preSize = postProcessRelations.size();
+            int postSize = preSize;
+            if (verbose) {
+                LOGGER.log(Level.INFO, "Post processing {0} relations with forward references", new Object[] { preSize });
+            }
+            do {
+                preSize = postSize;
+                List<Relation> temp = new ArrayList<>(postProcessRelations);
+                postProcessRelations.clear();
+                for (Relation r : temp) {
+                    addRelationToMap(r);
+                }
+                postSize = postProcessRelations.size();
+                if (verbose) {
+                    LOGGER.log(Level.INFO, "{0} incomplete relations left", new Object[] { postSize });
+                }
+            } while (postSize < preSize);
         }
 
         // Second run if we are in complete-relation-mode
