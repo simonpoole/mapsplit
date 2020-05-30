@@ -71,7 +71,8 @@ public class MapSplit {
 
     private static final String MAPSPLIT_TAG = "mapsplit";
 
-    private static final String PBF_EXT = ".pbf";
+    private static final String PBF_EXT = ".osm.pbf";
+    private static final List<String> KNOWN_PBF_EXTS = List.of(".pbf", ".osm.pbf");
 
     private static final Logger LOGGER = Logger.getLogger(MapSplit.class.getName());
 
@@ -1182,7 +1183,7 @@ public class MapSplit {
                             if (basename.contains("%x") && basename.contains("%y")) {
                                 file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY)).replace("%z",
                                         Integer.toString(currentZoom));
-                                if (!file.endsWith(PBF_EXT)) {
+                                if (!KNOWN_PBF_EXTS.stream().anyMatch(file::endsWith)) {
                                     file = file + PBF_EXT;
                                 }
                             } else {
