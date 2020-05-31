@@ -82,7 +82,7 @@ public class HeapMap extends AbstractOsmMap {
     }
 
     @Override
-    public int getCapacity() {
+    public long getCapacity() {
         return capacity;
     }
 

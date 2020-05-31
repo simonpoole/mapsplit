@@ -77,7 +77,9 @@ public interface OsmMap {
      * 
      * @return the load of the map
      */
-    public abstract double getLoad();
+    public default double getLoad() {
+        return keys().size() / getCapacity();
+    }
 
     /**
      * for debugging this method gives the ratio of misses to hits. For open addressing multiple misses may occur. The
@@ -117,7 +119,7 @@ public interface OsmMap {
      * 
      * @return the capacity of this map
      */
-    public int getCapacity();
+    public long getCapacity();
 
     /**
      * Return all the keys
