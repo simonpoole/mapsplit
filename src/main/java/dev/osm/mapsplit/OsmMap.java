@@ -15,6 +15,12 @@ package dev.osm.mapsplit;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * This is the central data structure of Mapsplit.
+ * It maps OSM element IDs to the tile(s) each element is located in.
+ * As there are three types of OSM elements (node/way/relation),
+ * there will be three instances of this kind of data structure.
+ */
 public interface OsmMap {
 
     /** no neighbour */
@@ -74,7 +80,7 @@ public interface OsmMap {
     public abstract double getLoad();
 
     /**
-     * for debugging this method gives the ratio of misses to hits. For open addressing multiple misses may occour. The
+     * for debugging this method gives the ratio of misses to hits. For open addressing multiple misses may occur. The
      * ratio gives feedback about the goodness of the data/hash function. A value of 0 means perfect hashing, a value
      * larger 2 means a high load or a bad hash function.
      * 
