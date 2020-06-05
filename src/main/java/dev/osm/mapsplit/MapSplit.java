@@ -1261,7 +1261,7 @@ public class MapSplit {
                     public void process(EntityContainer ec) {
                         long id = ec.getEntity().getId();
 
-                        List<Integer> tiles;
+                        Iterable<Integer> tiles;
 
                         if (ec instanceof NodeContainer) {
                             tiles = nmap.getAllTiles(id);
@@ -1290,22 +1290,25 @@ public class MapSplit {
                             return;
                         }
 
-                        mappedTiles.clear();
-                        for (int i : tiles) {
-                            // map original zoom tiles to optimized ones
-                            // and remove duplicates
-                            Byte newZoom = zoomMap.get(i);
-                            if (newZoom != null) {
-                                i = mapToNewTile(i, newZoom);
-                            } else {
-                                newZoom = (byte) params.zoom;
+                        if (params.nodeLimit > 0) { // quite costly, and only relevant if tile optimization is on
+                            mappedTiles.clear();
+                            for (int i : tiles) {
+                                // map original zoom tiles to optimized ones
+                                // and remove duplicates
+                                Byte newZoom = zoomMap.get(i);
+                                if (newZoom != null) {
+                                    i = mapToNewTile(i, newZoom);
+                                } else {
+                                    newZoom = (byte) params.zoom;
+                                }
+                                if (currentZoom == newZoom) {
+                                    mappedTiles.add(i);
+                                }
                             }
-                            if (currentZoom == newZoom) {
-                                mappedTiles.add(i);
-                            }
+                            tiles = mappedTiles;
                         }
 
-                        for (int i : mappedTiles) {
+                        for (int i : tiles) {
                             if (tileSet.get(i)) {
                                 OsmosisSerializer ser = outFiles.get(i);
                                 if (ser != null) {
