@@ -1,6 +1,7 @@
 package dev.osm.mapsplit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +45,33 @@ public class ArrayMapTest {
         /* check the keys */
 
         assertEquals(Set.of(0l, 42l, 100l), new HashSet<>(map.keys()));
+
+    }
+
+    /** tests handling of tile 0/0 */
+    @Test
+    public void testTile00() {
+
+        var map = new ArrayMap(100);
+
+        map.put(0, 0, 0, OsmMap.NEIGHBOURS_NONE);
+        map.put(1, 0, 0, OsmMap.NEIGHBOURS_SOUTH_EAST);
+        map.put(2, 1, 0, OsmMap.NEIGHBOURS_NONE);
+
+        assertEquals(Set.of(0l, 1l, 2l), new HashSet<>(map.keys()));
+
+        long value0 = map.get(0);
+        assertEquals(0, map.tileX(value0));
+        assertEquals(0, map.tileY(value0));
+        assertEquals(List.of(0 << 16 | 0), map.getAllTiles(0));
+
+        long value1 = map.get(0);
+        assertEquals(0, map.tileX(value1));
+        assertEquals(0, map.tileY(value1));
+        assertEquals(3, map.getAllTiles(1).size());
+
+        map.update(2, List.of(map.createValue(0, 0, OsmMap.NEIGHBOURS_NONE)));
+        assertTrue(map.getAllTiles(0).contains(0 << 16 | 0));
 
     }
 

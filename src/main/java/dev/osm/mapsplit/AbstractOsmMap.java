@@ -16,11 +16,12 @@ import org.jetbrains.annotations.NotNull;
  *
  *     6                 4                   3    2 2 22
  *     3                 8                   2    8 7 54
- *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY uuuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
+ *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1uuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
  *
  *     X - tile number
  *     Y - tile number
  *     u - unused
+ *     1 - always set to 1. This ensures that the value can be distinguished from empty positions in an array.
  *     N - bits indicating immediate "neigbours"
  *     E - extended "neighbour" list used
  *     n - bits for "short" neighbour index, in long list mode used as index
@@ -50,6 +51,8 @@ abstract public class AbstractOsmMap implements OsmMap {
     private static final long  TILE_MARKER_MASK          = 0xFFFFFFl;
     private static final int   NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
     private static final long  NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
+    private static final int   ONE_BIT_SHIFT             = 31;
+    private static final long  ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
     private static final int   INITIAL_EXTENDED_SET_SIZE = 1000;
 
     private int     extendedBuckets = 0;
@@ -127,7 +130,9 @@ abstract public class AbstractOsmMap implements OsmMap {
      * @return the value encoding the set of tiles represented by the parameters
      */
     protected long createValue(int tileX, int tileY, int neighbours) {
-        return ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT | ((long) neighbours) << NEIGHBOUR_SHIFT;
+        return ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT
+                | ((long) neighbours) << NEIGHBOUR_SHIFT
+                | ONE_BIT_MASK;
     }
 
     /**
