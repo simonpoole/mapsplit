@@ -16,6 +16,18 @@ public final class Const {
     // used on values
     static final long MAX_TILE_NUMBER = (long) Math.pow(2, MAX_ZOOM) - 1;
 
+    /** the highest latitude value supported by the Mercator-based tile number system */
+    static final double MAX_LAT = 85.0511;
+
+    /** the lowest latitude value supported by the Mercator-based tile number system */
+    static final double MIN_LAT = -85.0511;
+
+    /** the highest possible longitude value */
+    static final double MAX_LON = 180.0;
+
+    /** the lowest possible longitude value */
+    static final double MIN_LON = -180.0;
+
     /*
      * the default sizes for the hash maps: should be a factor 2-4 of nodes in the pbf you want to read
      */

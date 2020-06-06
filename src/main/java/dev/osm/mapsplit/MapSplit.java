@@ -188,12 +188,12 @@ public class MapSplit {
     private int lon2tileX(double lon) {
         int xtile = (int) Math.floor((lon + 180) / 360 * (1 << params.zoom));
         if (xtile < 0) {
-            xtile = 0;
+            return 0;
+        } else if (xtile >= (1 << params.zoom)) {
+            return ((1 << params.zoom) - 1);
+        } else {
+            return xtile;
         }
-        if (xtile >= (1 << params.zoom)) {
-            xtile = ((1 << params.zoom) - 1);
-        }
-        return xtile;
     }
 
     /**
@@ -205,12 +205,12 @@ public class MapSplit {
     private int lat2tileY(double lat) {
         int ytile = (int) Math.floor((1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI) / 2 * (1 << params.zoom));
         if (ytile < 0) {
-            ytile = 0;
+            return 0;
+        } else if (ytile >= (1 << params.zoom)) {
+            return ((1 << params.zoom) - 1);
+        } else {
+            return ytile;
         }
-        if (ytile >= (1 << params.zoom)) {
-            ytile = ((1 << params.zoom) - 1);
-        }
-        return ytile;
     }
 
     /**
@@ -230,10 +230,10 @@ public class MapSplit {
         double dx = r - l;
         double dy = b - t;
 
-        l -= params.border * dx;
-        r += params.border * dx;
-        t -= params.border * dy;
-        b += params.border * dy;
+        l = Math.max(l - params.border * dx, Const.MIN_LON);
+        r = Math.min(r + params.border * dx, Const.MAX_LON);
+        t = Math.min(t - params.border * dy, Const.MAX_LAT);
+        b = Math.max(b + params.border * dy, Const.MIN_LAT);
 
         return new Bound(r, l, t, b, MAPSPLIT_TAG);
     }
@@ -1394,7 +1394,7 @@ public class MapSplit {
             if (bounds != null) {
                 ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
             } else {
-                ent.setTilesetBounds(-180, -85, 180, 85);
+                ent.setTilesetBounds(Const.MIN_LON, -85, Const.MAX_LON, 85);
             }
             try {
                 w.addMetadataEntry(ent);
