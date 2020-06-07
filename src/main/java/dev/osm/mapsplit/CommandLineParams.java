@@ -96,7 +96,7 @@ final class CommandLineParams {
     /** maximum number of files/tiles to have open at the same time */
     final int maxFiles;
 
-    /** the size of the border (in percent for a tile's height and width) for single tiles */
+    /** the size of the border (in percent for a tile's height and width) for single tiles. 0 <= border < 0.5 */
     final double border;
 
     /** zoom level to generate tiles for */
@@ -128,7 +128,7 @@ final class CommandLineParams {
         Option mbTilesOption = Option.builder(OPT_MBTILES).longOpt(LONG_OPT_MBTILES).desc("store in a MBTiles format sqlite database").build();
         Option maxFilesOption = Option.builder(OPT_MAXFILES).longOpt(LONG_OPT_MAXFILES).hasArg().desc("maximum number of open files at a time").build();
         Option borderOption = Option.builder(OPT_BORDER).longOpt(LONG_OPT_BORDER).hasArg()
-                .desc("enlarge tiles by val ([0-1]) of the tile's size to get a border around the tile.").build();
+                .desc("enlarge tiles by val ([0-0.5)) of the tile's size to get a border around the tile.").build();
         Option polygonOption = Option.builder(OPT_POLYGON).longOpt(LONG_OPT_POLYGON).hasArg()
                 .desc("only save tiles that intersect or lie within the given polygon file.").build();
         Option dateOption = Option.builder(OPT_DATE).longOpt(LONG_OPT_DATE).hasArg().desc(
@@ -241,8 +241,9 @@ final class CommandLineParams {
                     if (border < 0) {
                         border = 0;
                     }
-                    if (border > 1) {
-                        border = 1;
+                    if (border >= 0.5) {
+                        logger.log(Level.WARNING, "border value must be less than 0.5");
+                        border = 0.4999;
                     }
                 } catch (NumberFormatException e) {
                     logger.log(Level.WARNING, "Could not parse border parameter, falling back to defaults");
