@@ -68,7 +68,7 @@ public class ArrayMapTest {
         long value1 = map.get(0);
         assertEquals(0, map.tileX(value1));
         assertEquals(0, map.tileY(value1));
-        assertEquals(3, map.getAllTiles(1).size());
+        assertEquals(4, map.getAllTiles(1).size());
 
         map.update(2, List.of(map.createValue(0, 0, OsmMap.NEIGHBOURS_NONE)));
         assertTrue(map.getAllTiles(0).contains(0 << 16 | 0));

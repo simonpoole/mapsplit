@@ -32,7 +32,10 @@ public interface OsmMap {
     /** we have a neighbour at the bottom (south) */
     public static final int NEIGHBOURS_SOUTH = 2;
 
-    /** we have two neighbours, east and south */
+    /**
+     * we have neighbours in the east, the south, and the south-east.
+     * It's not possible for a node to be in the south and east tile, but not in the south-east tile.
+     */
     public static final int NEIGHBOURS_SOUTH_EAST = 3;
 
     /**

@@ -117,6 +117,9 @@ abstract public class AbstractOsmMap implements OsmMap {
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
             result.add(tx << Const.MAX_ZOOM | (ty + 1));
         }
+        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH_EAST) == OsmMap.NEIGHBOURS_SOUTH_EAST) {
+            result.add((tx + 1) << Const.MAX_ZOOM | (ty + 1));
+        }
 
         return result;
     }
