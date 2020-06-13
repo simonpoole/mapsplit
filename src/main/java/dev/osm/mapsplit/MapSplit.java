@@ -1167,7 +1167,8 @@ public class MapSplit {
                 LOGGER.log(Level.INFO, "Processing {0} tiles for zoom {1}", new Object[] { tileSet.cardinality(), currentZoom });
             }
 
-            int idx = 0;
+            int idx = -1; //start at -1 because this will be incremented before the first use
+
             // We might call this code several times if we have more tiles
             // to store than open files allowed
             while (true) {
