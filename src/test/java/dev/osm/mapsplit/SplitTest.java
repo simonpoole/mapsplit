@@ -37,6 +37,7 @@ public class SplitTest {
     private static final String TEST_DATA_PBF       = "test-data/liechtenstein-latest.osm.pbf";
     private static final long TEST_DATA_PBF_LATEST  = 1544288785000L; 
 
+    private static final String TEST_DATA_EXTREME_NODES_PBF = "test-data/extreme-nodes.osm.pbf";
     private static final String TEST_DATA_BORDER_TEST_PBF = "test-data/border-test.osm.pbf";
 
     /**
@@ -130,6 +131,26 @@ public class SplitTest {
             checkMetadata(16, 16, TEST_DATA_PBF_LATEST);
             Tile t = getTile(16, 33972, 23225);
             Assert.assertNull(t); // shouldn't exist, is outside of Vaduz
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    /**
+     * Test for nodes with very small or large lat/lon values
+     */
+    @Test
+    public void splitNearLatLonBounds() {
+        try {
+            File output = new File(MSF_OUTPUT_FILENAME);
+            Assert.assertFalse(output.exists());
+            MapSplit.main(new String[] { "-mtvM", "-i", TEST_DATA_EXTREME_NODES_PBF,
+                    "-o", MSF_OUTPUT_FILENAME, "-z", "13"});
+            checkMetadata(13, 13, null);
+            assertEquals(1, getTileData(13, 0, 0).size());
+            assertEquals(1, getTileData(13, 0, 8191).size());
+            assertEquals(1, getTileData(13, 8191, 0).size());
+            assertEquals(1, getTileData(13, 8191, 8191).size());
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
