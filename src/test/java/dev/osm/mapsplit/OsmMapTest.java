@@ -3,18 +3,35 @@ package dev.osm.mapsplit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-public class ArrayMapTest {
+@RunWith(Parameterized.class)
+public class OsmMapTest {
+
+    /** provides an instance of {@link OsmMap} for us to test */
+    public final Supplier<AbstractOsmMap> mapSupplier;
+
+    public OsmMapTest(Supplier<AbstractOsmMap> mapSupplier) {
+        this.mapSupplier = mapSupplier;
+    }
+
+    @Parameterized.Parameters
+    public static Collection<Supplier<AbstractOsmMap>> testees() {
+       return List.of(() -> new ArrayMap(100), () -> new HeapMap(100));
+    }
 
     @Test
     public void testPutUpdateAndRetrieve() {
 
-        var map = new ArrayMap(100);
+        AbstractOsmMap map = mapSupplier.get();
 
         int tileX = 1245;
         int tileY = 99;
@@ -52,7 +69,7 @@ public class ArrayMapTest {
     @Test
     public void testTile00() {
 
-        var map = new ArrayMap(100);
+        AbstractOsmMap map = mapSupplier.get();
 
         map.put(0, 0, 0, OsmMap.NEIGHBOURS_NONE);
         map.put(1, 0, 0, OsmMap.NEIGHBOURS_SOUTH_EAST);
