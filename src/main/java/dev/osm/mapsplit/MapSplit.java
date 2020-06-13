@@ -1503,7 +1503,7 @@ public class MapSplit {
 
         // Date-setup as fall-back option
         DateFormat df = DateFormat.getDateTimeInstance();
-        Date appointmentDate = new Date(0);
+        Date appointmentDate = new Date(-1);
 
         if (params.dateFile == null && params.verbose) {
             LOGGER.log(Level.INFO, "No datefile given. Writing all available tiles.");
