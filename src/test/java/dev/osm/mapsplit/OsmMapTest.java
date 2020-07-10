@@ -3,6 +3,7 @@ package dev.osm.mapsplit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -89,6 +90,27 @@ public class OsmMapTest {
 
         map.update(2, List.of(map.createValue(0, 0, OsmMap.NEIGHBOURS_NONE)));
         assertTrue(map.getAllTiles(0).contains(0 << 16 | 0));
+
+    }
+
+    /** adds a lot of tiles to the same entry */
+    @Test
+    public void testLongTileLists() {
+
+        List<Long> listOfTiles = new ArrayList<>();
+
+        for (int i = 1; i < 1000; i++) {
+
+            AbstractOsmMap map = mapSupplier.get();
+
+            listOfTiles.add(map.createValue(10000 + i, 500, OsmMap.NEIGHBOURS_NONE));
+
+            map.put(42, 10000, 500, OsmMap.NEIGHBOURS_NONE);
+            map.update(42, new ArrayList<>(listOfTiles));
+
+            assertEquals(1 + i, map.getAllTiles(42).size());
+
+        }
 
     }
 

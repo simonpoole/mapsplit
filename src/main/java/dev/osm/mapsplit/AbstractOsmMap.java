@@ -81,7 +81,6 @@ abstract public class AbstractOsmMap implements OsmMap {
     @Override
     public List<Integer> getAllTiles(long key) {
 
-        List<Integer> result;
         long value = get(key);
 
         if (value == 0) {
@@ -92,20 +91,14 @@ abstract public class AbstractOsmMap implements OsmMap {
         int ty = tileY(value);
         int neighbour = neighbour(value);
 
+        List<Integer> result;
+
         if ((value & TILE_EXT_MASK) != 0) {
             int idx = (int) (value & TILE_MARKER_MASK);
-            return asList(extendedSet[idx]);
-
-            /*
-             * TODO: testen, dieser Teil sollte nicht noetig sein, da schon im extendedSet! set.add(tx << 13 | ty); if
-             * ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) set.add(tx+1 << 13 | ty); if ((neighbour &
-             * OsmMap.NEIGHBOURS_SOUTH) != 0) set.add(tx << 13 | ty+1);
-             * 
-             * return set;
-             */
+            result = new ArrayList<Integer>(asList(extendedSet[idx]));
+        } else {
+            result = parseMarker(value);
         }
-
-        result = parseMarker(value);
 
         // TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
 
