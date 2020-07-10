@@ -103,15 +103,15 @@ abstract public class AbstractOsmMap implements OsmMap {
         // TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
 
         // add the tile (and possible neighbours)
-        result.add(tx << Const.MAX_ZOOM | ty);
+        result.add(TileCoord.encode(tx, ty));
         if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-            result.add((tx + 1) << Const.MAX_ZOOM | ty);
+            result.add(TileCoord.encode(tx + 1, ty));
         }
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-            result.add(tx << Const.MAX_ZOOM | (ty + 1));
+            result.add(TileCoord.encode(tx, ty + 1));
         }
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH_EAST) == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-            result.add((tx + 1) << Const.MAX_ZOOM | (ty + 1));
+            result.add(TileCoord.encode(tx + 1, ty + 1));
         }
 
         return result;
@@ -154,31 +154,32 @@ abstract public class AbstractOsmMap implements OsmMap {
         }
 
         // create a expanded temp set for neighbourhood tiles
-        Collection<Long> expanded = new TreeSet<>();
+        Collection<Integer> expanded = new TreeSet<Integer>();
         for (long tile : tiles) {
-            expanded.add(tile);
 
-            long x = tileX(tile);
-            long y = tileY(tile);
+            int x = tileX(tile);
+            int y = tileY(tile);
             int neighbour = neighbour(tile);
 
+            expanded.add(TileCoord.encode(x, y));
+
             if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                expanded.add((x + 1) << TILE_X_SHIFT | y << TILE_Y_SHIFT);
+                expanded.add(TileCoord.encode(x + 1, y));
             }
             if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                expanded.add(x << TILE_X_SHIFT | (y + 1) << TILE_Y_SHIFT);
+                expanded.add(TileCoord.encode(x, y + 1));
             }
             if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                expanded.add((x + 1) << TILE_X_SHIFT | (y + 1) << TILE_Y_SHIFT);
+                expanded.add(TileCoord.encode(x + 1, y + 1));
             }
         }
 
         // now we use the 24 reserved bits for the tiles list..
         boolean extend = false;
-        for (long tile : expanded) {
+        for (int tile : expanded) {
 
-            int tmpX = tileX(tile);
-            int tmpY = tileY(tile);
+            int tmpX = TileCoord.decodeX(tile);
+            int tmpY = TileCoord.decodeY(tile);
 
             if (tmpX == tx && tmpY == ty) {
                 continue;
@@ -223,8 +224,8 @@ abstract public class AbstractOsmMap implements OsmMap {
             // add current stuff to tiles list
             List<Integer> tmpList = parseMarker(val);
             for (int i : tmpList) {
-                long tx = i >>> Const.MAX_ZOOM;
-                long ty = i & Const.MAX_TILE_NUMBER;
+                long tx = TileCoord.decodeX(i);
+                long ty = TileCoord.decodeY(i);
                 long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
 
                 tiles.add(temp);
@@ -272,15 +273,15 @@ abstract public class AbstractOsmMap implements OsmMap {
             int ty = tileY(l);
             int neighbour = neighbour(l);
 
-            set[pos++] = tx << Const.MAX_ZOOM | ty;
+            set[pos++] = TileCoord.encode(tx, ty);
             if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                set[pos++] = (tx + 1) << Const.MAX_ZOOM | ty;
+                set[pos++] = TileCoord.encode(tx + 1, ty);
             }
             if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                set[pos++] = tx << Const.MAX_ZOOM | (ty + 1);
+                set[pos++] = TileCoord.encode(tx, ty + 1);
             }
             if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                set[pos++] = (tx + 1) << Const.MAX_ZOOM | (ty + 1);
+                set[pos++] = TileCoord.encode(tx + 1, ty + 1);
             }
         }
 
@@ -304,7 +305,7 @@ abstract public class AbstractOsmMap implements OsmMap {
             int tmpX = v % 5 - 2;
             int tmpY = v / 5 - 2;
 
-            result.add((tx + tmpX) << Const.MAX_ZOOM | (ty + tmpY));
+            result.add(TileCoord.encode(tx + tmpX, ty + tmpY));
         }
         return result;
     }
