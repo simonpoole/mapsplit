@@ -67,6 +67,12 @@ public interface OsmMap {
     public abstract void update(long key, Collection<Long> tiles);
 
     /**
+     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord)
+     * without neighbor information 
+     */
+    public abstract void updateInt(long key, Collection<Integer> tiles);
+
+    /**
      * returns a list of all tiles this key is in. This contains the base-tile, neighbours and tiles where this key is
      * connected to other keys, e.g. by a way. The format of the integer is (tileX << 16 | tileY).
      * 

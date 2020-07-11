@@ -98,8 +98,16 @@ public class MapSplit {
     // the hashmap for all relations in the osm map
     private final OsmMap rmap;
 
-    // a map of ways that need to be added in a second run
-    private HashMap<Long, Collection<Long>> extraWayMap = null;
+    /**
+     * ways which are members in a relation, 
+     * and whose nodes might therefore need to be added to extra tiles in a second run.
+     * 
+     * If we do not want complete relations, this field is null.
+     * But we may want some or all relations to be complete – that is, we want their way members,
+     * and all nodes of these way members(!), to be part of all tiles the relation itself is in.
+     * Because we do not store a way's nodes, this requires a second read through the input file.
+     */
+    private Set<Long> relationMemberWayIds = null;
 
     // a bitset telling the algorithm which tiles need to be re-renderd
     private final UnsignedSparseBitSet modifiedTiles = new UnsignedSparseBitSet();
@@ -152,7 +160,7 @@ public class MapSplit {
         }
 
         if (params.completeRelations || params.completeAreas) {
-            extraWayMap = new HashMap<>();
+            relationMemberWayIds = new HashSet<>();
         }
 
         optimizedModifiedTiles.put(params.zoom, modifiedTiles);
@@ -505,15 +513,15 @@ public class MapSplit {
      * Iterate over the way nodes and add tileList to the list of tiles they are supposed to be in
      * 
      * @param way the Way we are processing
-     * @param tileList the List of tiles
+     * @param tileList the List of tiles, encoded with {@link TileCoord}
      */
-    private void addExtraWayToMap(@NotNull Way way, @NotNull Collection<Long> tileList) {
+    private void addExtraWayToMap(@NotNull Way way, @NotNull Collection<Integer> tileList) {
 
         for (WayNode wayNode : way.getWayNodes()) {
 
             // update map so that the node knows about any additional
             // tile it has to be stored in
-            nmap.update(wayNode.getNodeId(), tileList);
+            nmap.updateInt(wayNode.getNodeId(), tileList);
         }
     }
 
@@ -638,7 +646,7 @@ public class MapSplit {
                     break;
                 case Way:
                     wmap.update(m.getMemberId(), tileList);
-                    extraWayMap.put(m.getMemberId(), tileList);
+                    relationMemberWayIds.add(m.getMemberId());
                     break;
                 case Relation:
                     rmap.update(m.getMemberId(), tileList);
@@ -789,7 +797,7 @@ public class MapSplit {
         }
 
         // Second run if we are in complete-relation-mode
-        if (extraWayMap != null) {
+        if (relationMemberWayIds != null) {
 
             complete = false;
 
@@ -804,8 +812,8 @@ public class MapSplit {
                 public void process(EntityContainer ec) {
                     if (ec instanceof WayContainer) {
                         Way w = ((WayContainer) ec).getEntity();
-                        Collection<Long> tileList = extraWayMap.get(w.getId());
-                        if (tileList != null) {
+                        if (relationMemberWayIds.contains(w.getId())) {
+                            List<Integer> tileList = wmap.getAllTiles(w.getId());
                             addExtraWayToMap(w, tileList);
                         }
                     }
