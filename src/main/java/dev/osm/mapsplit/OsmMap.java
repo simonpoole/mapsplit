@@ -14,6 +14,7 @@ package dev.osm.mapsplit;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.LongStream;
 
 /**
  * This is the central data structure of Mapsplit.
@@ -87,7 +88,7 @@ public interface OsmMap {
      * @return the load of the map
      */
     public default double getLoad() {
-        return keys().size() / getCapacity();
+        return keys().count() / getCapacity();
     }
 
     /**
@@ -131,9 +132,10 @@ public interface OsmMap {
     public long getCapacity();
 
     /**
-     * Return all the keys
+     * return all the keys. Implemented using a stream instead of a collection to avoid
+     * having to keep them all in memory at the same time. (There can be a lot of them!)
      * 
-     * @return a List holding all the keys from the map
+     * @return a stream providing all the keys from the map
      */
-    public List<Long> keys();
+    public LongStream keys();
 }

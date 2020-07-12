@@ -1,11 +1,11 @@
 package dev.osm.mapsplit;
 
+import static java.util.stream.Collectors.toSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -62,7 +62,7 @@ public class OsmMapTest {
 
         /* check the keys */
 
-        assertEquals(Set.of(0l, 42l, 100l), new HashSet<>(map.keys()));
+        assertEquals(Set.of(0l, 42l, 100l), map.keys().boxed().collect(toSet()));
 
     }
 
@@ -76,7 +76,7 @@ public class OsmMapTest {
         map.put(1, 0, 0, OsmMap.NEIGHBOURS_SOUTH_EAST);
         map.put(2, 1, 0, OsmMap.NEIGHBOURS_NONE);
 
-        assertEquals(Set.of(0l, 1l, 2l), new HashSet<>(map.keys()));
+        assertEquals(Set.of(0l, 1l, 2l), map.keys().boxed().collect(toSet()));
 
         long value0 = map.get(0);
         assertEquals(0, map.tileX(value0));

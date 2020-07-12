@@ -863,7 +863,7 @@ public class MapSplit {
         // lots of Nodes that are in more than
         // one tile
         Map<Integer, Integer> stats = new HashMap<>();
-        for (long k : nmap.keys()) {
+        nmap.keys().forEach((long k) -> {
             List<Integer> tiles = nmap.getAllTiles(k);
             if (tiles != null) {
                 for (Integer t : tiles) {
@@ -878,7 +878,7 @@ public class MapSplit {
             } else {
                 LOGGER.log(Level.INFO, "tiles null for {0}", k);
             }
-        }
+        });
         long nodeCount = 0;
         List<Integer> keys = new ArrayList<>(stats.keySet());
         Collections.sort(keys);

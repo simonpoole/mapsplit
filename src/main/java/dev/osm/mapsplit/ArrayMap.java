@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.LongStream;
 
 import static java.lang.Math.min;
 
@@ -82,14 +83,8 @@ public final class ArrayMap extends AbstractOsmMap {
     }
 
     @Override
-    public final List<Long> keys() {
-        List<Long> result = new ArrayList<>();
-        for (long key = 0; key <= maxKey; key++) {
-            if (get(key) != 0) {
-                result.add(key);
-            }
-        }
-        return result;
+    public final LongStream keys() {
+        return LongStream.rangeClosed(0, maxKey).filter(key -> get(key) != 0);
     }
 
     /** returns the array containing the value associated with [key] */
