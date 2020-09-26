@@ -46,16 +46,14 @@ public abstract class AbstractOsmMap implements OsmMap {
 
     private static final int  TILE_EXT_SHIFT            = 30;
     private static final long TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
-    private static final long TILE_MARKER_MASK          = 0xFFFFFFl;
+    static final long         TILE_MARKER_MASK          = 0xFFFFFFl;
     private static final long TILE_EXT_INDEX_MASK       = 0x3FFFFFFFl;
     private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT - 2;
     private static final long NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
     private static final int  ONE_BIT_SHIFT             = 31;
     private static final long ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
-    private static final int  INITIAL_EXTENDED_SET_SIZE = 1000;
 
-    private int     extendedBuckets = 0;
-    private int[][] extendedSet     = new int[INITIAL_EXTENDED_SET_SIZE][];
+    private final ExtendedTileSetStore extendedSets = new ExtendedTileSetStore();
 
     @Override
     public int tileX(long value) {
@@ -93,7 +91,7 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         if ((value & TILE_EXT_MASK) != 0) {
             int idx = (int) (value & TILE_EXT_INDEX_MASK);
-            result = new IntArraySet(extendedSet[idx]);
+            result = new IntArraySet(extendedSets.get(idx));
             result.add(TileCoord.encode(tx, ty));
         } else {
             result = parseNeighbourBits(value);
@@ -143,8 +141,13 @@ public abstract class AbstractOsmMap implements OsmMap {
         // neighbour list is already too large so we use the "large store"
         if ((val & TILE_EXT_MASK) != 0) {
             int idx = (int) (val & TILE_EXT_INDEX_MASK);
-            appendNeighbours(idx, tiles);
-            return originalValue;
+            IntSet set = new IntOpenHashSet(extendedSets.get(idx));
+            set.addAll(decode(tiles));
+            int newSetIndex = extendedSets.add(set.toIntArray());
+            val |= TILE_EXT_MASK;
+            val &= ~TILE_EXT_INDEX_MASK; // overwrite any existing content with 0s
+            val |= newSetIndex;
+            return val;
         }
 
         // create a expanded temp set for neighbourhood tiles
@@ -209,7 +212,8 @@ public abstract class AbstractOsmMap implements OsmMap {
     }
 
     /**
-     * Start using the list of additional tiles instead of the bits directly in the value
+     * Start using an index for an {@link ExtendedTileSetStore}
+     * instead of the bits directly in the value
      * 
      * @param val the value to extend
      * @param tiles the List of additional tiles
@@ -224,41 +228,20 @@ public abstract class AbstractOsmMap implements OsmMap {
             tiles.add(tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT);
         }
 
-        // delete old marker from val and old old NN values
-        val &= ~TILE_EXT_INDEX_MASK;
+        IntSet tileSet = decode(tiles);
+        int extendedSetIndex = extendedSets.add(tileSet.toIntArray());
 
-        int cur = extendedBuckets++;
-
-        // if we don't have enough sets, increase the array...
-        if (cur >= extendedSet.length) {
-            if (extendedSet.length >= TILE_EXT_INDEX_MASK / 2) { // assumes TILE_EXT_INDEX_MASK starts at 0
-                throw new IllegalStateException("Too many extended tile entries to expand");
-            }
-            int[][] tmp = new int[2 * extendedSet.length][];
-            System.arraycopy(extendedSet, 0, tmp, 0, extendedSet.length);
-            extendedSet = tmp;
-        }
-
-        val |= 1l << TILE_EXT_SHIFT;
-        val |= (long) cur;
-
-        extendedSet[cur] = new int[0];
-
-        appendNeighbours(cur, tiles);
+        val |= TILE_EXT_MASK;
+        val &= ~TILE_EXT_INDEX_MASK; // overwrite any existing content with 0s
+        val |= extendedSetIndex;
 
         return val;
     }
 
-    /**
-     * Add tiles to the extended tile list for an element
-     * 
-     * @param index the index in to the array of the tile lists
-     * @param tiles a collection containing the tile numbers
-     */
-    private void appendNeighbours(int index, @NotNull Collection<Long> tiles) {
+    /** transforms a list of map values into a list of integer tile coords (using {@link TileCoord} encoding) */
+    private IntSet decode(@NotNull Collection<Long> tiles) {
 
-        // copy the existing set (don't modify the original)
-        IntSet set = new IntOpenHashSet(extendedSet[index]);
+        IntSet set = new IntOpenHashSet();
 
         for (long l : tiles) {
             int tx = tileX(l);
@@ -267,7 +250,7 @@ public abstract class AbstractOsmMap implements OsmMap {
             parseNnBits(set, neighbour(l), tx, ty);
         }
 
-        extendedSet[index] = set.toIntArray();
+        return set;
 
     }
 
