@@ -53,6 +53,23 @@ public class SplitTest {
     }
 
     /**
+     * Basic test to check that sparse tiles are optimized correctly
+     */
+    @Test
+    public void splitOptimizeSparseTiles() {
+        try {
+            File output = new File(MSF_OUTPUT_FILENAME);
+            Assert.assertFalse(output.exists());
+            MapSplit.main(new String[] { "-mtvM", "-i", TEST_DATA_PBF, "-o", MSF_OUTPUT_FILENAME, "-f", "2000", "-z", "16", "-O", "20000000" });
+            checkMetadata(12, 12);
+            Tile t = getTile(12, 2143, 1439);
+            Assert.assertNotNull(t);
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    /**
      * Basic test to check that stuff happens, with full relations
      */
     @Test

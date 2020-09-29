@@ -877,11 +877,12 @@ public class MapSplit {
             if (!zoomMap.containsKey(key)) { // not mapped
                 if (value < nodeLimit) {
                     CountResult prevResult = null;
-                    for (int z = 1; z < 5; z++) {
+                    int maxZoomOutDiff = 5;
+                    for (int z = 1; z < maxZoomOutDiff; z++) {
                         int newZoom = zoom - z;
                         CountResult result = getCounts(key, z, stats);
                         if (result.total < 4 * nodeLimit) {
-                            if (result.total > nodeLimit) {
+                            if (result.total > nodeLimit || z == (maxZoomOutDiff - 1)) {
                                 for (int i = 0; i < result.keys.length; i++) {
                                     if (result.counts[i] != null) {
                                         zoomMap.put(result.keys[i], (byte) newZoom);
