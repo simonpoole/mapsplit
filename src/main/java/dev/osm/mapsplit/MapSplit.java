@@ -203,7 +203,12 @@ public class MapSplit {
      * @return the tile X number
      */
     private int lon2tileX(double lon) {
-        return (int) Math.floor((lon + 180.0) / 360.0 * Math.pow(2.0, zoom));
+        int xtile = (int)Math.floor( (lon + 180) / 360 * (1<<zoom) ) ;
+        if (xtile < 0)
+            xtile=0;
+        if (xtile >= (1<<zoom))
+            xtile=((1<<zoom)-1);
+        return xtile;
     }
 
     /**
@@ -213,8 +218,12 @@ public class MapSplit {
      * @return the tile y number
      */
     private int lat2tileY(double lat) {
-        return (int) Math
-                .floor((1.0 - Math.log(Math.tan(lat * Math.PI / 180.0) + 1.0 / Math.cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * Math.pow(2.0, zoom));
+        int ytile = (int)Math.floor( (1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI) / 2 * (1<<zoom) ) ;
+        if (ytile < 0)
+            ytile=0;
+        if (ytile >= (1<<zoom))
+            ytile=((1<<zoom)-1);
+        return ytile;
     }
 
     /**
