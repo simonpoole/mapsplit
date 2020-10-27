@@ -82,22 +82,15 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         if (value == 0) {
             return null;
-        }
-
-        int tx = tileX(value);
-        int ty = tileY(value);
-
-        IntSet result;
-
-        if ((value & TILE_EXT_MASK) != 0) {
+        } else if ((value & TILE_EXT_MASK) != 0) {
             int idx = (int) (value & TILE_EXT_INDEX_MASK);
-            result = new IntArraySet(extendedSets.get(idx));
-            result.add(TileCoord.encode(tx, ty));
+            return new IntArraySet(extendedSets.get(idx));
         } else {
-            result = parseNeighbourBits(value);
-            result.add(TileCoord.encode(tx, ty));
+            IntSet result = parseNeighbourBits(value);
+            result.add(TileCoord.encode(tileX(value), tileY(value)));
+            return result;
         }
-        return result;
+
     }
 
     @Override
@@ -221,14 +214,8 @@ public abstract class AbstractOsmMap implements OsmMap {
      */
     private long extendToNeighbourSet(long val, @NotNull Collection<Long> tiles) {
 
-        // add current stuff to tiles list
-        for (int i : parseNeighbourBits(val)) {
-            long tx = TileCoord.decodeX(i);
-            long ty = TileCoord.decodeY(i);
-            tiles.add(tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT);
-        }
-
-        IntSet tileSet = new IntOpenHashSet();
+        IntSet tileSet = parseNeighbourBits(val);
+        tileSet.add(TileCoord.encode(tileX(val), tileY(val)));
         tiles.forEach(tile -> tileSet.addAll(decode(tile)));
         int extendedSetIndex = extendedSets.add(tileSet.toIntArray());
 
