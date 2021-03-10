@@ -135,7 +135,7 @@ final class CommandLineParams {
                 "file containing the date since when tiles are being considered to have changed after the split the latest change in infile is going to be stored in file")
                 .build();
         Option sizeOption = Option.builder(OPT_SIZE).longOpt(LONG_OPT_SIZE).hasArg().desc(
-                "n,w,r the size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
+                "n,w,r the initial size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
                 .build();
         Option maxIdsOption = Option.builder(OPT_MAX_IDS).longOpt(LONG_OPT_MAX_IDS).hasArg().desc(
                 "n,w,r the maximum id to allow in the node, way and relation arrays. Using this option will cause Mapsplit"
