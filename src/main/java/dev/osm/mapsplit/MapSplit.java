@@ -679,7 +679,15 @@ public class MapSplit {
         }
     }
 
-    private static boolean hasTag(Entity e, String key, String value) {
+    /**
+     * Check if a Entity has a specific tag
+     * 
+     * @param e the Entity
+     * @param key the tag key
+     * @param value the tag value
+     * @return true if the tag is present
+     */
+    private static boolean hasTag(@NotNull Entity e, @Nullable String key, @Nullable String value) {
         return e.getTags().stream().anyMatch(tag -> tag.getKey().equals(key) && tag.getValue().equals(value));
     }
 
