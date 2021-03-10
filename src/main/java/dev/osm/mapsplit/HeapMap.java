@@ -66,7 +66,7 @@ public class HeapMap implements OsmMap {
 
     private static final int   TILE_EXT_SHIFT            = 24;
     private static final long  TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
-    private static final long  TILE_MARKER_MASK          = 0xFFFFFFl;
+    static final long          TILE_MARKER_MASK          = 0xFFFFFFl;
     private static final int   NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
     private static final long  NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
     private static final float DEFAULT_FILL_FACTOR       = 0.75f;
@@ -139,7 +139,7 @@ public class HeapMap implements OsmMap {
 
     @Override
     public int neighbour(long value) {
-        return (int) ((value & NEIGHBOUR_MASK) >> NEIGHBOUR_SHIFT);
+        return (int) ((value & NEIGHBOUR_MASK) >>> NEIGHBOUR_SHIFT);
     }
 
     /**
@@ -148,7 +148,7 @@ public class HeapMap implements OsmMap {
      * @param key the key
      * @return the hash for key
      */
-    private static long KEY(long key) {
+    private static long hash(long key) {
         return 0x7fffffff & (int) (1664525 * key + 1013904223);
     }
 
@@ -162,20 +162,28 @@ public class HeapMap implements OsmMap {
         if (key < 0) {
             throw new IllegalArgumentException("Ids are limited to positive longs");
         }
-        int count = 0;
-
-        int bucket = (int) (KEY(key) % capacity);
         long value = ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT | ((long) neighbours) << NEIGHBOUR_SHIFT;
+        put(key, value);
+    }
 
+    /**
+     * Put a key and the value in to the map
+     * 
+     * @param key the key
+     * @param value the value
+     */
+    private void put(long key, long value) {
+        if (size > threshold) {
+            expand(capacity * 2);
+        }
+        int bucket = (int) (hash(key) % capacity);
+        int count = 0;
         while (true) {
-            if (values[bucket] == 0) {
+            if (values[bucket] == 0l) {
                 keys[bucket] = key;
                 values[bucket] = value;
                 size++;
                 return;
-            }
-            if (size > threshold) {
-                throw new HeapMapError("HashMap filled up, increase the (static) capacity!");
             }
             if (count == 0) {
                 // mark bucket as "overflow bucket"
@@ -188,6 +196,29 @@ public class HeapMap implements OsmMap {
     }
 
     /**
+     * Expand the map to a larger capacity
+     * 
+     * @param newCapacity the new capacity
+     */
+    private void expand(int newCapacity) {
+        long[] oldKeys = keys;
+        long[] oldValues = values;
+        int oldCapacity = capacity;
+        capacity = newCapacity;
+        keys = new long[capacity];
+        values = new long[capacity];
+        threshold = (int) (capacity * fillFactor);
+        size = 0; // reset
+        for (int i = 0; i < oldCapacity; i++) {
+            long value = oldValues[i];
+            if (value != 0) {
+                final long key = oldKeys[i] & ~BUCKET_FULL_MASK;
+                put(key, value);
+            }
+        }
+    }
+
+    /**
      * Get the bucket index for the value
      * 
      * @param key the key
@@ -195,7 +226,7 @@ public class HeapMap implements OsmMap {
      */
     private int getBucket(long key) {
         int count = 0;
-        int bucket = (int) (KEY(key) % capacity);
+        int bucket = (int) (hash(key) % capacity);
 
         while (true) {
             if (values[bucket] != 0l) {
@@ -233,7 +264,6 @@ public class HeapMap implements OsmMap {
         if (bucket == -1) {
             return 0;
         }
-
         return values[bucket];
     }
 

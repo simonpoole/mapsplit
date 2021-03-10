@@ -157,7 +157,7 @@ public class MapSplit {
      * 
      * @param zoom maximum zoom level to generate tiles for
      * @param appointmentDate only add changes from after this date (doesn't really work)
-     * @param mapSizes sizes of the maps for OSM objects
+     * @param mapSizes initial sizes of the maps for OSM objects
      * @param maxFiles maximum number of files/tiles to keep open at the same time
      * @param border grow tiles (content) by this factor
      * @param inputFile the input PBF file
@@ -1572,7 +1572,7 @@ public class MapSplit {
                 "file containing the date since when tiles are being considered to have changed after the split the latest change in infile is going to be stored in file")
                 .build();
         Option sizeOption = Option.builder("s").longOpt("size").hasArg().desc(
-                "n,w,r the size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
+                "n,w,r the initial size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
                 .build();
         Option inputOption = Option.builder("i").longOpt("input").hasArgs().desc("a file in OSM pbf format").required().build();
         Option outputOption = Option.builder("o").longOpt("output").hasArg().desc(
