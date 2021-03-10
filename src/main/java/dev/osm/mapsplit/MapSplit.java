@@ -83,6 +83,8 @@ public class MapSplit {
 
     private static final Logger LOGGER = Logger.getLogger(MapSplit.class.getName());
 
+    private static final int MAX_ZOOM_OUT_DIFF = 5;
+
     private final int zoom;
 
     // all data after this appointment date is considered new or modified
@@ -161,11 +163,11 @@ public class MapSplit {
      * @param inputFile the input PBF file
      * @param completeRelations include all relation member objects in every tile the relation is present in (very
      *            expensive)
-     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in (very
-     *            expensive)
+     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in
+     *            (very expensive)
      */
-    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile,
-            boolean completeRelations, boolean completeAreas) {
+    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations,
+            boolean completeAreas) {
         this.zoom = zoom;
         this.border = border;
         this.input = inputFile;
@@ -888,11 +890,11 @@ public class MapSplit {
             if (!zoomMap.containsKey(key)) { // not mapped
                 if (value < nodeLimit) {
                     CountResult prevResult = null;
-                    for (int z = 1; z < 5; z++) {
+                    for (int z = 1; z < MAX_ZOOM_OUT_DIFF; z++) {
                         int newZoom = zoom - z;
                         CountResult result = getCounts(key, z, stats);
                         if (result.total < 4 * nodeLimit) {
-                            if (result.total > nodeLimit) {
+                            if (result.total > nodeLimit || z == (MAX_ZOOM_OUT_DIFF - 1)) {
                                 for (int i = 0; i < result.keys.length; i++) {
                                     if (result.counts[i] != null) {
                                         zoomMap.put(result.keys[i], (byte) newZoom);
@@ -1437,8 +1439,7 @@ public class MapSplit {
      */
     private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
             double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean completeAreas,
-            boolean mbTiles, int nodeLimit)
-            throws IOException, InterruptedException {
+            boolean mbTiles, int nodeLimit) throws IOException, InterruptedException {
 
         long startup = System.currentTimeMillis();
 
