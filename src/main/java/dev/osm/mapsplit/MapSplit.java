@@ -111,7 +111,7 @@ public class MapSplit {
     private final boolean completeAreas;
 
     // the hashmap for all nodes in the osm map
-    private final OsmMap nmap;
+    final OsmMap nmap;
 
     // the hashmap for all ways in the osm map
     private final OsmMap wmap;
@@ -270,7 +270,7 @@ public class MapSplit {
      * 
      * @param tiles the current tiles
      */
-    private void checkAndFill(@NotNull Collection<Long> tiles) {
+    void checkAndFill(@NotNull Collection<Long> tiles) {
 
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
@@ -287,7 +287,8 @@ public class MapSplit {
             maxX = Math.max(maxX, tx);
             maxY = Math.max(maxY, ty);
         }
-
+System.out.println("min x " + minX + " minY " + minY);
+System.out.println("max x " + maxX + " maxY " + maxY);
         // enlarge min/max to have a border and to cope with possible neighbour tiles
         minX -= 2;
         minY -= 2;
@@ -295,7 +296,9 @@ public class MapSplit {
         maxY += 2;
         int sizeX = maxX - minX + 1;
         int sizeY = maxY - minY + 1;
-
+System.out.println("min x " + minX + " minY " + minY);
+System.out.println("max x " + maxX + " maxY " + maxY);
+System.out.println(sizeX + " x " + sizeY);
         // fill the helperSet which marks any set tile
         BitSet helperSet = new BitSet();
         for (long tile : tiles) {
@@ -325,7 +328,7 @@ public class MapSplit {
 
             boolean isSet = helperSet.get(val);
             helperSet.set(val);
-
+System.out.println("Setting " + ((val % sizeX)+minX) + " " + ((val / sizeX) + minY));
             if (val >= sizeX * sizeY) {
                 continue;
             }
@@ -349,7 +352,7 @@ public class MapSplit {
         int idx = -1;
         while (true) {
             idx = helperSet.nextClearBit(idx + 1);
-
+ System.out.println("bit " + idx);
             if (idx >= sizeX * sizeY) {
                 break;
             }
@@ -367,6 +370,7 @@ public class MapSplit {
             // TODO: make this a bit nicer by delegating the id-generation to the map code
             int c = tx << Const.MAX_ZOOM | ty;
             tiles.add(((long) c) << HeapMap.TILE_Y_SHIFT);
+ System.out.println("final " + tx + " " + ty);
             modifiedTiles.set(c);
         }
     }
