@@ -661,7 +661,6 @@ public class MapSplit {
         }
     }
 
-    private static boolean hasTag(@NotNull Entity e, @Nullable String key, @Nullable String value) {
     /**
      * Check if a Entity has a specific tag
      * 
