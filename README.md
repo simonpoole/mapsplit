@@ -49,7 +49,8 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
 
     -b,--border <arg>     enlarge tiles by val ([0-1]) of the tile's size to
                           get a border around the tile.
-    -c,--complete         store complete data for multi-polygons
+    -c,--complete         store complete data for relations (including multi-polygons)
+    -C,--complete-areas   store complete data for multi-polygons
     -d,--date <arg>       file containing the date since when tiles are being
                           considered to have changed after the split the
                           latest change in infile is going to be stored in file
