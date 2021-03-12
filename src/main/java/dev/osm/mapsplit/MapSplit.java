@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -166,7 +167,7 @@ public class MapSplit {
      * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in
      *            (very expensive)
      */
-    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations,
+    public MapSplit(int zoom, Date appointmentDate, long[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations,
             boolean completeAreas) {
         this.zoom = zoom;
         this.border = border;
@@ -886,7 +887,9 @@ public class MapSplit {
         // lots of Nodes that are in more than
         // one tile
         Map<Integer, Integer> stats = new HashMap<>();
-        for (long k : nmap.keys()) {
+        Iterator<Long> it = nmap.keyIterator();
+        while (it.hasNext()) {
+            long k = it.next();
             List<Integer> tiles = nmap.getAllTiles(k);
             if (tiles != null) {
                 for (Integer t : tiles) {
@@ -1458,7 +1461,7 @@ public class MapSplit {
      * @throws InterruptedException if one of the Threads was interrupted
      * @throws IOException if IO went wrong
      */
-    private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
+    private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, long[] mapSizes, int maxFiles,
             double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean completeAreas,
             boolean mbTiles, int nodeLimit) throws IOException, InterruptedException {
 
@@ -1538,7 +1541,7 @@ public class MapSplit {
         boolean completeAreas = false;
         boolean mbTiles = false;
         String dateFile = null;
-        int[] mapSizes = new int[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
+        long[] mapSizes = new long[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
         int maxFiles = -1;
         double border = 0.0;
         int zoom = 13;
@@ -1546,13 +1549,7 @@ public class MapSplit {
 
         // set up logging
         LogManager.getLogManager().reset();
-        SimpleFormatter fmt = new SimpleFormatter();
-        Handler stdoutHandler = new FlushStreamHandler(System.out, fmt); // NOSONAR
-        stdoutHandler.setLevel(Level.INFO);
-        LOGGER.addHandler(stdoutHandler);
-        Handler stderrHandler = new FlushStreamHandler(System.err, fmt); // NOSONAR
-        stderrHandler.setLevel(Level.WARNING);
-        LOGGER.addHandler(stderrHandler);
+        setupLogging(LOGGER);
 
         // arguments
         Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();
@@ -1644,7 +1641,7 @@ public class MapSplit {
                 String tmp = line.getOptionValue("size");
                 String[] vals = tmp.split(",");
                 for (int j = 0; j < 3; j++) {
-                    mapSizes[j] = Integer.valueOf(vals[j]);
+                    mapSizes[j] = Long.valueOf(vals[j]);
                 }
             }
             if (line.hasOption("b")) {
@@ -1727,5 +1724,20 @@ public class MapSplit {
                 dos.writeUTF(df.format(latest));
             }
         }
+    }
+
+    /**
+     * Set up logging
+     * 
+     * @param the Logger to use
+     */
+    public static void setupLogging(@NotNull Logger logger) {
+        SimpleFormatter fmt = new SimpleFormatter();
+        Handler stdoutHandler = new FlushStreamHandler(System.out, fmt); // NOSONAR
+        stdoutHandler.setLevel(Level.INFO);
+        LOGGER.addHandler(stdoutHandler);
+        Handler stderrHandler = new FlushStreamHandler(System.err, fmt); // NOSONAR
+        stderrHandler.setLevel(Level.WARNING);
+        LOGGER.addHandler(stderrHandler);
     }
 }
