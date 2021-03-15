@@ -44,18 +44,10 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.imintel.mbtiles4j.MBTilesWriteException;
 import org.imintel.mbtiles4j.MBTilesWriter;
 import org.imintel.mbtiles4j.model.MetadataEntry;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
@@ -85,30 +77,15 @@ public class MapSplit {
 
     private static final int MAX_ZOOM_OUT_DIFF = 5;
 
-    private final int zoom;
+    private final CommandLineParams params;
 
     // all data after this appointment date is considered new or modified
     private Date appointmentDate;
 
     private Date latestDate = new Date(0);
 
-    // the size of the border (in percent for a tile's height and width) for single tiles
-    private double border = 0.1;
-
-    // the input file we're going to split
-    private File input;
-
-    // maximum number of files open at the same time
-    private int maxFiles;
-
     // internal store to check if reading the file worked
     private boolean complete = false;
-
-    // verbose outpu
-    private boolean verbose = false;
-
-    private final boolean completeRelations;
-    private final boolean completeAreas;
 
     // the hashmap for all nodes in the osm map
     private final OsmMap nmap;
@@ -155,34 +132,20 @@ public class MapSplit {
     /**
      * Construct a new MapSplit instance
      * 
-     * @param zoom maximum zoom level to generate tiles for
+     * @param params parameters from the command line
      * @param appointmentDate only add changes from after this date (doesn't really work)
-     * @param mapSizes sizes of the maps for OSM objects
-     * @param maxFiles maximum number of files/tiles to keep open at the same time
-     * @param border grow tiles (content) by this factor
-     * @param inputFile the input PBF file
-     * @param completeRelations include all relation member objects in every tile the relation is present in (very
-     *            expensive)
-     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in
-     *            (very expensive)
      */
-    public MapSplit(int zoom, Date appointmentDate, int[] mapSizes, int maxFiles, double border, File inputFile, boolean completeRelations,
-            boolean completeAreas) {
-        this.zoom = zoom;
-        this.border = border;
-        this.input = inputFile;
+    public MapSplit(CommandLineParams params, Date appointmentDate) {
+        this.params = params;
         this.appointmentDate = appointmentDate;
-        this.maxFiles = maxFiles;
-        this.completeRelations = completeRelations;
-        this.completeAreas = completeAreas;
-        nmap = new HeapMap(mapSizes[0]);
-        wmap = new HeapMap(mapSizes[1]);
-        rmap = new HeapMap(mapSizes[2]);
-        if (completeRelations || completeAreas) {
+        nmap = new HeapMap(params.mapSizes[0]);
+        wmap = new HeapMap(params.mapSizes[1]);
+        rmap = new HeapMap(params.mapSizes[2]);
+        if (params.completeRelations || params.completeAreas) {
             extraWayMap = new HashMap<>();
         }
 
-        optimizedModifiedTiles.put(zoom, modifiedTiles);
+        optimizedModifiedTiles.put(params.zoom, modifiedTiles);
     }
 
     /**
@@ -192,7 +155,7 @@ public class MapSplit {
      * @return the longitude
      */
     private double tile2lon(int x) {
-        return (x / Math.pow(2.0, zoom)) * 360.0 - 180.0;
+        return (x / Math.pow(2.0, params.zoom)) * 360.0 - 180.0;
     }
 
     /**
@@ -202,7 +165,7 @@ public class MapSplit {
      * @return the latitude
      */
     private double tile2lat(int y) {
-        double n = Math.PI - 2.0 * Math.PI * y / Math.pow(2, zoom);
+        double n = Math.PI - 2.0 * Math.PI * y / Math.pow(2, params.zoom);
         return (180.0 / Math.PI * Math.atan(0.5 * (Math.pow(Math.E, n) - Math.pow(Math.E, -n))));
     }
 
@@ -213,12 +176,12 @@ public class MapSplit {
      * @return the tile X number
      */
     private int lon2tileX(double lon) {
-        int xtile = (int) Math.floor((lon + 180) / 360 * (1 << zoom));
+        int xtile = (int) Math.floor((lon + 180) / 360 * (1 << params.zoom));
         if (xtile < 0) {
             xtile = 0;
         }
-        if (xtile >= (1 << zoom)) {
-            xtile = ((1 << zoom) - 1);
+        if (xtile >= (1 << params.zoom)) {
+            xtile = ((1 << params.zoom) - 1);
         }
         return xtile;
     }
@@ -230,12 +193,12 @@ public class MapSplit {
      * @return the tile y number
      */
     private int lat2tileY(double lat) {
-        int ytile = (int) Math.floor((1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI) / 2 * (1 << zoom));
+        int ytile = (int) Math.floor((1 - Math.log(Math.tan(Math.toRadians(lat)) + 1 / Math.cos(Math.toRadians(lat))) / Math.PI) / 2 * (1 << params.zoom));
         if (ytile < 0) {
             ytile = 0;
         }
-        if (ytile >= (1 << zoom)) {
-            ytile = ((1 << zoom) - 1);
+        if (ytile >= (1 << params.zoom)) {
+            ytile = ((1 << params.zoom) - 1);
         }
         return ytile;
     }
@@ -257,10 +220,10 @@ public class MapSplit {
         double dx = r - l;
         double dy = b - t;
 
-        l -= border * dx;
-        r += border * dx;
-        t -= border * dy;
-        b += border * dy;
+        l -= params.border * dx;
+        r += params.border * dx;
+        t -= params.border * dy;
+        b += params.border * dy;
 
         return new Bound(r, l, t, b, MAPSPLIT_TAG);
     }
@@ -383,7 +346,7 @@ public class MapSplit {
         double x1 = tile2lon(tx);
         double x2 = tile2lon(tx + 1);
 
-        return border * (x2 - x1);
+        return params.border * (x2 - x1);
     }
 
     /**
@@ -398,7 +361,7 @@ public class MapSplit {
         double y1 = tile2lat(ty);
         double y2 = tile2lat(ty + 1);
 
-        return border * (y2 - y1);
+        return params.border * (y2 - y1);
     }
 
     /**
@@ -484,7 +447,7 @@ public class MapSplit {
 
             // don't ignore missing nodes
             if (tile == 0) {
-                if (verbose) {
+                if (params.verbose) {
                     LOGGER.log(Level.INFO, "way {0} missing node {1}", new Object[] { way.getId(), wayNode.getNodeId() });
                 }
                 return;
@@ -569,7 +532,7 @@ public class MapSplit {
 
                 // The referenced node is not in our data set
                 if (tile == 0) {
-                    if (verbose && !nodeWarned) {
+                    if (params.verbose && !nodeWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a node)", r.getId());
                         nodeWarned = true;
                     }
@@ -592,7 +555,7 @@ public class MapSplit {
 
                 // The referenced way is not in our data set
                 if (list == null) {
-                    if (verbose && !wayWarned) {
+                    if (params.verbose && !wayWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a way)", r.getId());
                         wayWarned = true;
                     }
@@ -616,7 +579,7 @@ public class MapSplit {
 
                 // The referenced relation is not in our data set
                 if (list == null) {
-                    if (verbose && !relationWarned) {
+                    if (params.verbose && !relationWarned) {
                         LOGGER.log(Level.INFO, "Non-complete Relation {0} (missing a relation)", r.getId());
                         relationWarned = true;
                     }
@@ -656,7 +619,7 @@ public class MapSplit {
         // update map so that the relation knows in which tiles it is needed
         rmap.update(r.getId(), tileList);
 
-        if (completeRelations || (completeAreas && hasTag(r, "type", "multipolygon"))) {
+        if (params.completeRelations || (params.completeAreas && hasTag(r, "type", "multipolygon"))) {
             // only add members to all the tiles if the appropriate option is enabled
             for (RelationMember m : r.getMembers()) {
                 switch (m.getMemberType()) {
@@ -690,16 +653,12 @@ public class MapSplit {
     /**
      * Setup the OSM object to tiles mappings
      *
-     * @param verbose verbose output if true
-     * @param metadata we want to write metadata if true
      * @throws IOException if reading the input caused an issue
      * @throws InterruptedException if a Thread was interrupted
      */
-    public void setup(final boolean verbose, final boolean metadata) throws IOException, InterruptedException {
+    public void setup() throws IOException, InterruptedException {
 
-        this.verbose = verbose;
-
-        RunnableSource reader = new OsmosisReader(new FileInputStream(input));
+        RunnableSource reader = new OsmosisReader(new FileInputStream(params.inputFile));
         reader.setSink(new Sink() {
             @Override
             public void complete() {
@@ -712,7 +671,7 @@ public class MapSplit {
              * @param e the OSM object to check
              */
             void checkMetadata(@NotNull Entity e) {
-                if (metadata && (e.getVersion() == -1)) { // this doesn't seem to be really documented
+                if (params.metadata && (e.getVersion() == -1)) { // this doesn't seem to be really documented
                     throw new DataFormatException(String.format("%s %d is missing a valid version and metadata flag is set", e.getType(), e.getId()));
                 }
             }
@@ -723,7 +682,7 @@ public class MapSplit {
                     Node n = ((NodeContainer) ec).getEntity();
                     checkMetadata(n);
                     addNodeToMap(n, n.getLatitude(), n.getLongitude());
-                    if (verbose) {
+                    if (params.verbose) {
                         nCount++;
                         if ((nCount % (nmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} nodes processed", nCount);
@@ -733,7 +692,7 @@ public class MapSplit {
                     Way w = ((WayContainer) ec).getEntity();
                     checkMetadata(w);
                     addWayToMap(w);
-                    if (verbose) {
+                    if (params.verbose) {
                         wCount++;
                         if ((wCount % (wmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} ways processed", wCount);
@@ -743,7 +702,7 @@ public class MapSplit {
                     Relation r = ((RelationContainer) ec).getEntity();
                     checkMetadata(r);
                     addRelationToMap(r);
-                    if (verbose) {
+                    if (params.verbose) {
                         rCount++;
                         if ((rCount % (rmap.getCapacity() / 20)) == 0) {
                             LOGGER.log(Level.INFO, "{0} relations processed", rCount);
@@ -769,7 +728,7 @@ public class MapSplit {
             }
         });
 
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "Initial pass started");
         }
         Thread readerThread = new Thread(reader);
@@ -787,14 +746,14 @@ public class MapSplit {
             throw new IOException("Could not read file fully");
         }
 
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "We have read:\n{0} nodes\n{1} ways\n{2} relations", new Object[] { nCount, wCount, rCount });
         }
 
         if (!postProcessRelations.isEmpty()) {
             int preSize = postProcessRelations.size();
             int postSize = preSize;
-            if (verbose) {
+            if (params.verbose) {
                 LOGGER.log(Level.INFO, "Post processing {0} relations with forward references", new Object[] { preSize });
             }
             do {
@@ -805,7 +764,7 @@ public class MapSplit {
                     addRelationToMap(r);
                 }
                 postSize = postProcessRelations.size();
-                if (verbose) {
+                if (params.verbose) {
                     LOGGER.log(Level.INFO, "{0} incomplete relations left", new Object[] { postSize });
                 }
             } while (postSize < preSize);
@@ -816,7 +775,7 @@ public class MapSplit {
 
             complete = false;
 
-            reader = new OsmosisReader(new FileInputStream(input));
+            reader = new OsmosisReader(new FileInputStream(params.inputFile));
             reader.setSink(new Sink() {
                 @Override
                 public void complete() {
@@ -869,7 +828,7 @@ public class MapSplit {
      * 
      */
     private void optimize(final int nodeLimit) {
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "Optimizing ...");
         }
         long statsStart = System.currentTimeMillis();
@@ -904,7 +863,7 @@ public class MapSplit {
                 if (value < nodeLimit) {
                     CountResult prevResult = null;
                     for (int z = 1; z < MAX_ZOOM_OUT_DIFF; z++) {
-                        int newZoom = zoom - z;
+                        int newZoom = params.zoom - z;
                         CountResult result = getCounts(key, z, stats);
                         if (result.total < 4 * nodeLimit) {
                             if (result.total > nodeLimit || z == (MAX_ZOOM_OUT_DIFF - 1)) {
@@ -942,7 +901,7 @@ public class MapSplit {
             }
             tileSet.set(idx);
         }
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "Tiles {0} avg node count {1} merged tiles {2}", new Object[] { stats.size(), nodeCount / stats.size(), zoomMap.size() });
             LOGGER.log(Level.INFO, "Stats took {0} s", (System.currentTimeMillis() - statsStart) / 1000);
         }
@@ -996,8 +955,8 @@ public class MapSplit {
      * @return packed tile id at newTileZoom
      */
     private int mapToNewTile(int idx, int newTileZoom) {
-        int xNew = (idx >>> Const.MAX_ZOOM) >> (zoom - newTileZoom);
-        int yNew = (idx & (int) Const.MAX_TILE_NUMBER) >> (zoom - newTileZoom);
+        int xNew = (idx >>> Const.MAX_ZOOM) >> (params.zoom - newTileZoom);
+        int yNew = (idx & (int) Const.MAX_TILE_NUMBER) >> (params.zoom - newTileZoom);
         return xNew << Const.MAX_ZOOM | yNew;
     }
 
@@ -1083,7 +1042,7 @@ public class MapSplit {
      * @param polygonFile the path for a file containing the polygon
      * @throws IOException if reading fails
      */
-    public void clipPoly(@NotNull String polygonFile) throws IOException {
+    public void clipPoly(@NotNull File polygonFile) throws IOException {
 
         List<double[]> inside = new ArrayList<>();
         List<double[]> outside = new ArrayList<>();
@@ -1162,12 +1121,11 @@ public class MapSplit {
      * 
      * @param basename the basename for individual tile files or the name of a MBTiles format sqlite database
      * @param metadata write metadata (version, timestamp, etc)
-     * @param verbose verbose output if true
      * @param mbTiles write to a MBTiles format sqlite database instead of writing individual tiles
      * @throws IOException if reading or creating the files has an issue
      * @throws InterruptedException if one of the Threads was interrupted
      */
-    public void store(@NotNull String basename, boolean metadata, boolean verbose, boolean mbTiles) throws IOException, InterruptedException {
+    public void store(@NotNull String basename, boolean metadata, boolean mbTiles) throws IOException, InterruptedException {
 
         MBTilesWriter w = null;
         if (mbTiles) {
@@ -1179,7 +1137,7 @@ public class MapSplit {
             }
         }
         Bound bounds = null;
-        int minZoom = zoom;
+        int minZoom = params.zoom;
         for (Entry<Integer, UnsignedSparseBitSet> omt : optimizedModifiedTiles.entrySet()) {
             final UnsignedSparseBitSet tileSet = omt.getValue();
             final int currentZoom = omt.getKey();
@@ -1187,7 +1145,7 @@ public class MapSplit {
                 minZoom = currentZoom;
             }
             int ymax = 1 << currentZoom; // for conversion to TMS schema
-            if (verbose) {
+            if (params.verbose) {
                 LOGGER.log(Level.INFO, "Processing {0} tiles for zoom {1}", new Object[] { tileSet.cardinality(), currentZoom });
             }
 
@@ -1253,14 +1211,14 @@ public class MapSplit {
                         }
                     }
 
-                    if ((maxFiles != -1) && (++count >= maxFiles)) {
+                    if ((params.maxFiles != -1) && (++count >= params.maxFiles)) {
                         break;
                     }
                 }
 
                 // Now start writing output...
 
-                RunnableSource reader = new OsmosisReader(new FileInputStream(input));
+                RunnableSource reader = new OsmosisReader(new FileInputStream(params.inputFile));
 
                 class BoundSink implements Sink {
 
@@ -1322,7 +1280,7 @@ public class MapSplit {
                             if (newZoom != null) {
                                 i = mapToNewTile(i, newZoom);
                             } else {
-                                newZoom = (byte) zoom;
+                                newZoom = (byte) params.zoom;
                             }
                             if (currentZoom == newZoom) {
                                 mappedTiles.add(i);
@@ -1388,7 +1346,7 @@ public class MapSplit {
                     }
                 }
 
-                if (verbose) {
+                if (params.verbose) {
                     LOGGER.log(Level.INFO, "Wrote {0} tiles, continuing with next block of tiles", outFiles.size());
                 }
                 // remove mappings form this pass
@@ -1410,7 +1368,7 @@ public class MapSplit {
             File file = new File(basename);
             ent.setTilesetName(file.getName()).setTilesetType(MetadataEntry.TileSetType.BASE_LAYER).setTilesetVersion(Const.MBT_VERSION)
                     .setAttribution(Const.OSM_ATTRIBUTION).addCustomKeyValue("format", Const.MSF_MIME_TYPE)
-                    .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(zoom))
+                    .addCustomKeyValue("minzoom", Integer.toString(minZoom)).addCustomKeyValue("maxzoom", Integer.toString(params.zoom))
                     .addCustomKeyValue("latest_date", Long.toString(latestDate.getTime()));
             if (bounds != null) {
                 ent.setTilesetBounds(bounds.getLeft(), bounds.getBottom(), bounds.getRight(), bounds.getTop());
@@ -1430,73 +1388,58 @@ public class MapSplit {
     /**
      * Set up options from the command line and run the tiler
      * 
-     * @param zoom zoom level to generate tiles for
-     * @param inputFile the input PBF file
-     * @param outputBase base filename
-     * @param polygonFile a file containing a coverage polygon
-     * @param mapSizes sizes of the maps for OSM objects
-     * @param maxFiles maximum files/tiles to have open at once
-     * @param border grow tiles (content) by this factor
+     * @param params parameters from the command line
      * @param appointmentDate only add changes from after this date (doesn't really work)
-     * @param metadata include metadata (timestamp etc)
-     * @param verbose verbose output
-     * @param timing output timing information
-     * @param completeRelations include all relation member objects in every tile the relation is present in (very
-     *            expensive)
-     * @param completeAreas include all multipolygon relation member objects in every tile the relation is present in
-     * @param mbTiles generate a MBTiles format SQLite file instead of individual tiles
-     * @param nodeLimit if > 0 optimize tiles so that they contain at least nodeLimit Nodes
+     * 
      * @return the "last changed" date
      * @throws InterruptedException if one of the Threads was interrupted
      * @throws IOException if IO went wrong
      */
-    private static Date run(int zoom, @NotNull String inputFile, @NotNull String outputBase, @Nullable String polygonFile, int[] mapSizes, int maxFiles,
-            double border, Date appointmentDate, boolean metadata, boolean verbose, boolean timing, boolean completeRelations, boolean completeAreas,
-            boolean mbTiles, int nodeLimit) throws IOException, InterruptedException {
+    private static Date run(CommandLineParams params, Date appointmentDate) throws IOException, InterruptedException {
 
         long startup = System.currentTimeMillis();
 
-        MapSplit split = new MapSplit(zoom, appointmentDate, mapSizes, maxFiles, border, new File(inputFile), completeRelations, completeAreas);
+        MapSplit split = new MapSplit(params, appointmentDate);
 
         long time = System.currentTimeMillis();
-        split.setup(verbose, metadata);
+        split.setup();
         time = System.currentTimeMillis() - time;
 
         double nratio = split.nmap.getMissHitRatio();
         double wratio = split.wmap.getMissHitRatio();
         double rratio = split.rmap.getMissHitRatio();
 
-        if (polygonFile != null) {
-            if (verbose) {
-                LOGGER.log(Level.INFO, "Clip tiles with polygon given by \"{0}\"", polygonFile);
+        if (params.polygonFile != null) {
+            if (params.verbose) {
+                LOGGER.log(Level.INFO, "Clip tiles with polygon given by \"{0}\"", params.polygonFile);
             }
-            split.clipPoly(polygonFile);
+            split.clipPoly(params.polygonFile);
         }
 
         long modified = split.modifiedTiles.cardinality();
 
-        if (timing) {
+        if (params.timing) {
             LOGGER.log(Level.INFO, "Initial reading and datastructure setup took {0} ms", time);
         }
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "We have {0} modified tiles to store.", modified);
         }
 
-        if (nodeLimit > 0) {
-            split.optimize(nodeLimit);
+        if (params.nodeLimit > 0) {
+            split.optimize(params.nodeLimit);
         }
 
         time = System.currentTimeMillis();
-        split.store(outputBase, metadata, verbose, mbTiles);
+        split.store(params.outputBase, params.metadata, params.mbTiles);
         time = System.currentTimeMillis() - time;
-        if (timing) {
+        if (params.timing) {
             LOGGER.log(Level.INFO, "Saving tiles took {0} ms", time);
             long overall = System.currentTimeMillis() - startup;
             LOGGER.log(Level.INFO, "Overall runtime: {0} ms", overall);
             LOGGER.log(Level.INFO, " == {0} min", (overall / 1000 / 60));
         }
 
-        if (verbose) {
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "HeapMap's load:");
             LOGGER.log(Level.INFO, "Nodes    : {0}", split.nmap.getLoad());
             LOGGER.log(Level.INFO, "Ways     : {0}", split.wmap.getLoad());
@@ -1519,23 +1462,6 @@ public class MapSplit {
      */
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        Date appointmentDate;
-        String inputFile = null;
-        String outputBase = "";
-        String polygonFile = null;
-        boolean verbose = false;
-        boolean timing = false;
-        boolean metadata = false;
-        boolean completeRelations = false;
-        boolean completeAreas = false;
-        boolean mbTiles = false;
-        String dateFile = null;
-        int[] mapSizes = new int[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
-        int maxFiles = -1;
-        double border = 0.0;
-        int zoom = 13;
-        int nodeLimit = 0;
-
         // set up logging
         LogManager.getLogManager().reset();
         SimpleFormatter fmt = new SimpleFormatter();
@@ -1546,176 +1472,53 @@ public class MapSplit {
         stderrHandler.setLevel(Level.WARNING);
         LOGGER.addHandler(stderrHandler);
 
-        // arguments
-        Option helpOption = Option.builder("h").longOpt("help").desc("this help").build();
-        Option verboseOption = Option.builder("v").longOpt("verbose").desc("verbose information during processing").build();
-        Option timingOption = Option.builder("t").longOpt("timing").desc("output timing information").build();
-        Option metadataOption = Option.builder("m").longOpt("metadata")
-                .desc("store metadata in the tiles (version, timestamp), if the input file is missing the metadata abort").build();
-        Option completeRelationOption = Option.builder("c").longOpt("complete").desc("store complete data for all relations").build();
-        Option completeAreaOption = Option.builder("C").longOpt("complete-areas").desc("store complete data for multi polygons").build();
-        Option mbTilesOption = Option.builder("M").longOpt("mbtiles").desc("store in a MBTiles format sqlite database").build();
-        Option maxFilesOption = Option.builder("f").longOpt("maxfiles").hasArg().desc("maximum number of open files at a time").build();
-        Option borderOption = Option.builder("b").longOpt("border").hasArg()
-                .desc("enlarge tiles by val ([0-1]) of the tile's size to get a border around the tile.").build();
-        Option polygonOption = Option.builder("p").longOpt("polygon").hasArg().desc("only save tiles that intersect or lie within the given polygon file.")
-                .build();
-        Option dateOption = Option.builder("d").longOpt("date").hasArg().desc(
-                "file containing the date since when tiles are being considered to have changed after the split the latest change in infile is going to be stored in file")
-                .build();
-        Option sizeOption = Option.builder("s").longOpt("size").hasArg().desc(
-                "n,w,r the size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
-                .build();
-        Option inputOption = Option.builder("i").longOpt("input").hasArgs().desc("a file in OSM pbf format").required().build();
-        Option outputOption = Option.builder("o").longOpt("output").hasArg().desc(
-                "if creating a MBTiles files this is the name of the file, otherwise this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers")
-                .required().build();
-        Option zoomOption = Option.builder("z").longOpt("zoom").hasArg()
-                .desc("zoom level to create the tiles at must be between 0 and 16 (inclusive), default is 13").build();
-
-        Option optimizeOption = Option.builder("O").longOpt("optimize").hasArg()
-                .desc("optimize the tile stack, agrument is minimum number of Nodes a tile should contain, default is to not optimize").build();
-
-        Options options = new Options();
-
-        options.addOption(helpOption);
-        options.addOption(verboseOption);
-        options.addOption(timingOption);
-        options.addOption(metadataOption);
-        options.addOption(completeRelationOption);
-        options.addOption(completeAreaOption);
-        options.addOption(mbTilesOption);
-        options.addOption(maxFilesOption);
-        options.addOption(borderOption);
-        options.addOption(polygonOption);
-        options.addOption(dateOption);
-        options.addOption(sizeOption);
-        options.addOption(inputOption);
-        options.addOption(outputOption);
-        options.addOption(zoomOption);
-        options.addOption(optimizeOption);
-
-        CommandLineParser parser = new DefaultParser();
+        // parse command line parameters
+        CommandLineParams params;
         try {
-            // parse the command line arguments
-            CommandLine line = parser.parse(options, args);
-            if (line.hasOption("h")) {
-                HelpFormatter formatter = new HelpFormatter();
-                formatter.printHelp(MAPSPLIT_TAG, options);
-                return;
-            }
-            if (line.hasOption("v")) {
-                verbose = true;
-            }
-            if (line.hasOption("t")) {
-                timing = true;
-            }
-            if (line.hasOption("m")) {
-                metadata = true;
-            }
-            if (line.hasOption("c")) {
-                completeRelations = true;
-            }
-            if (line.hasOption("C")) {
-                completeAreas = true;
-            }
-            if (line.hasOption("M")) {
-                mbTiles = true;
-            }
-            if (line.hasOption("f")) {
-                String tmp = line.getOptionValue("maxfiles");
-                maxFiles = Integer.valueOf(tmp);
-            }
-            if (line.hasOption("d")) {
-                dateFile = line.getOptionValue("date");
-            }
-            if (line.hasOption("p")) {
-                polygonFile = line.getOptionValue("polygon");
-            }
-            if (line.hasOption("s")) {
-                String tmp = line.getOptionValue("size");
-                String[] vals = tmp.split(",");
-                for (int j = 0; j < 3; j++) {
-                    mapSizes[j] = Integer.valueOf(vals[j]);
-                }
-            }
-            if (line.hasOption("b")) {
-                String tmp = line.getOptionValue("border");
-                try {
-                    border = Double.valueOf(tmp);
-                    if (border < 0) {
-                        border = 0;
-                    }
-                    if (border > 1) {
-                        border = 1;
-                    }
-                } catch (NumberFormatException e) {
-                    LOGGER.log(Level.WARNING, "Could not parse border parameter, falling back to defaults");
-                }
-            }
-            if (line.hasOption("i")) {
-                inputFile = line.getOptionValue("input");
-            }
-            if (line.hasOption("o")) {
-                outputBase = line.getOptionValue("output");
-            }
-            if (line.hasOption("z")) {
-                String tmp = line.getOptionValue("zoom");
-                zoom = Integer.valueOf(tmp);
-            }
-            if (line.hasOption("O")) {
-                String tmp = line.getOptionValue("optimize");
-                nodeLimit = Integer.valueOf(tmp);
-            }
-        } catch (ParseException | NumberFormatException exp) {
-            LOGGER.log(Level.WARNING, exp.getMessage());
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp(MAPSPLIT_TAG, options);
+            params = new CommandLineParams(args, LOGGER);
+        } catch (IllegalArgumentException e) {
             return;
         }
 
         // Date-setup as fall-back option
         DateFormat df = DateFormat.getDateTimeInstance();
-        appointmentDate = new Date(0);
+        Date appointmentDate = new Date(0);
 
-        if (dateFile == null && verbose) {
+        if (params.dateFile == null && params.verbose) {
             LOGGER.log(Level.INFO, "No datefile given. Writing all available tiles.");
-        } else if (dateFile != null) {
+        } else if (params.dateFile != null) {
 
-            File file = new File(dateFile);
-
-            if (file.exists()) {
-                try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
+            if (params.dateFile.exists()) {
+                try (DataInputStream dis = new DataInputStream(new FileInputStream(params.dateFile))) {
                     String line = dis.readUTF();
 
                     if (line != null) {
                         try {
                             appointmentDate = df.parse(line);
                         } catch (java.text.ParseException pe) {
-                            if (verbose) {
+                            if (params.verbose) {
                                 LOGGER.log(Level.INFO, "Could not parse datefile.");
                             }
                         }
                     }
                 }
-            } else if (verbose) {
+            } else if (params.verbose) {
                 LOGGER.log(Level.INFO, "Datefile does not exist, writing all tiles");
             }
         }
 
-        if (verbose) {
-            LOGGER.log(Level.INFO, "Reading: {0}", inputFile);
-            LOGGER.log(Level.INFO, "Writing: {0}", outputBase);
+        if (params.verbose) {
+            LOGGER.log(Level.INFO, "Reading: {0}", params.inputFile);
+            LOGGER.log(Level.INFO, "Writing: {0}", params.outputBase);
         }
 
         // Actually run the splitter...
-        Date latest = run(zoom, inputFile, outputBase, polygonFile, mapSizes, maxFiles, border, appointmentDate, metadata, verbose, timing, completeRelations, // NOSONAR
-                completeAreas, mbTiles, nodeLimit);
-        if (verbose) {
+        Date latest = run(params, appointmentDate); // NOSONAR
+        if (params.verbose) {
             LOGGER.log(Level.INFO, "Last changes to the map had been done on {0}", df.format(latest));
         }
-        if (dateFile != null) {
-            try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(dateFile));) {
+        if (params.dateFile != null) {
+            try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(params.dateFile));) {
                 dos.writeUTF(df.format(latest));
             }
         }
