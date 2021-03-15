@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/simonpoole/mapsplit.svg?branch=master)](https://travis-ci.org/simonpoole/mapsplit)
+![build status](https://github.com/simonpoole/mapsplit/actions/workflows/javalib.yml/badge.svg)
 
 ### General
 
