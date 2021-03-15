@@ -1,4 +1,4 @@
-![build status](https://github.com/simonpoole/mapsplit/actions/workflows/javalib.yml/badge.svg)
+[![build status](https://github.com/simonpoole/mapsplit/actions/workflows/javalib.yml/badge.svg)](https://github.com/simonpoole/mapsplit/actions) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=alert_status)](https://sonarcloud.io/dashboard?id=mapsplit) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=coverage)](https://sonarcloud.io/dashboard?id=mapsplit) [![sonarcloud bugs](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=bugs)](https://sonarcloud.io/component_measures?id=mapsplit&metric=bugs) [![sonarcould maintainability](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Maintainability) [![sonarcloud security](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=security_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Security) [![sonarcloud reliability](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Reliability)
 
 ### General
 
@@ -21,7 +21,7 @@ To make the contents easily identifiable and usable by applications we set the f
 
 * _format_ __application/vnd.openstreetmap.data+pbf__ (note this is not a registered mime type)
 * _minzoom_ and _maxzoom_
-* _latest___date_ the timestamp of the youngest OSM element added, as the number of seconds since the UNIX epoch
+* *latest_date* the timestamp of the youngest OSM element added, as the number of seconds since the UNIX epoch
 
 You should __NOT__ confuse this format with Mapbox vector tiles that use PBF encoded tiles for rendering data generated from, among
 other sources, OpenStreetMap.
