@@ -29,7 +29,7 @@ public final class ArrayMap extends AbstractOsmMap {
      * additional arrays, only used if the maximum ID is large enough to require it.
      * Not implemented as an array of arrays to avoid the additional indirection.
      */
-    private final @Nullable long[] array1, array2, array3;
+    private final @Nullable long[] array1, array2, array3, array4, array5;
 
     /**
      * only keys in range [0, maxKey] will work
@@ -64,6 +64,20 @@ public final class ArrayMap extends AbstractOsmMap {
             remainingRequiredSize -= array3.length;
         } else {
             array3 = null;
+        }
+
+        if (remainingRequiredSize > 0) {
+            array4 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
+            remainingRequiredSize -= array4.length;
+        } else {
+            array4 = null;
+        }
+
+        if (remainingRequiredSize > 0) {
+            array5 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
+            remainingRequiredSize -= array5.length;
+        } else {
+            array5 = null;
         }
 
         if (remainingRequiredSize > 0) {
@@ -117,6 +131,8 @@ public final class ArrayMap extends AbstractOsmMap {
         case 1: return array1;
         case 2: return array2;
         case 3: return array3;
+        case 4: return array4;
+        case 5: return array5;
         default: throw new IllegalArgumentException("No array for the key " + key + " exists");
         }
     }
