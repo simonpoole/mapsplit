@@ -44,9 +44,6 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import org.imintel.mbtiles4j.MBTilesWriteException;
-import org.imintel.mbtiles4j.MBTilesWriter;
-import org.imintel.mbtiles4j.model.MetadataEntry;
 import org.jetbrains.annotations.NotNull;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
@@ -64,6 +61,9 @@ import org.openstreetmap.osmosis.core.task.v0_6.RunnableSource;
 import org.openstreetmap.osmosis.core.task.v0_6.Sink;
 import org.openstreetmap.osmosis.osmbinary.file.BlockOutputStream;
 
+import ch.poole.geo.mbtiles4j.MBTilesWriteException;
+import ch.poole.geo.mbtiles4j.MBTilesWriter;
+import ch.poole.geo.mbtiles4j.model.MetadataEntry;
 import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
 

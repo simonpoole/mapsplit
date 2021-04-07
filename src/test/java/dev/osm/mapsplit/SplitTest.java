@@ -7,14 +7,15 @@ import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-import org.imintel.mbtiles4j.MBTilesReadException;
-import org.imintel.mbtiles4j.MBTilesReader;
-import org.imintel.mbtiles4j.Tile;
-import org.imintel.mbtiles4j.model.MetadataEntry;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import ch.poole.geo.mbtiles4j.MBTilesReadException;
+import ch.poole.geo.mbtiles4j.MBTilesReader;
+import ch.poole.geo.mbtiles4j.Tile;
+import ch.poole.geo.mbtiles4j.model.MetadataEntry;
 
 public class SplitTest {
 
