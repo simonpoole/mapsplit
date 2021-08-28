@@ -9,6 +9,7 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +40,8 @@ final class CommandLineParams {
     private static final String LONG_OPT_MBTILES            = "mbtiles";
     private static final String OPT_SIZE                    = "s";
     private static final String LONG_OPT_SIZE               = "size";
+    private static final String OPT_MAX_IDS                 = "x";
+    private static final String LONG_OPT_MAX_IDS            = "max-ids";
     private static final String OPT_MAXFILES                = "f";
     private static final String LONG_OPT_MAXFILES           = "maxfiles";
     private static final String OPT_BORDER                  = "b";
@@ -84,8 +87,11 @@ final class CommandLineParams {
     /** generate a MBTiles format SQLite file instead of individual tiles */
     final boolean mbTiles;
 
-    /** sizes of the maps for OSM objects */
-    final @NotNull int[] mapSizes;
+    /** sizes of the {@link HeapMap}s for OSM objects. Either this or {@link #maxIds} will be set. */
+    final int @Nullable[] mapSizes;
+
+    /** largest ID for each of the OSM object types. This will cause {@link ArrayMap}s to be used. */
+    final long @Nullable[] maxIds;
 
     /** maximum number of files/tiles to have open at the same time */
     final int maxFiles;
@@ -131,6 +137,10 @@ final class CommandLineParams {
         Option sizeOption = Option.builder(OPT_SIZE).longOpt(LONG_OPT_SIZE).hasArg().desc(
                 "n,w,r the size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
                 .build();
+        Option maxIdsOption = Option.builder(OPT_MAX_IDS).longOpt(LONG_OPT_MAX_IDS).hasArg().desc(
+                "n,w,r the maximum id to allow in the node, way and relation arrays. Using this option will cause Mapsplit"
+                        + " to use a different data structure that is capable of scaling to the entire planet, but uses a lot of RAM.")
+                .build();
         Option inputOption = Option.builder(OPT_INPUT).longOpt(LONG_OPT_INPUT).hasArgs().desc("a file in OSM pbf format").required().build();
         Option outputOption = Option.builder(OPT_OUTPUT).longOpt(LONG_OPT_OUTPUT).hasArg().desc(
                 "if creating a MBTiles files this is the name of the file, otherwise this is the base name of all tiles that will be written. The filename may contain '%x' and '%y' which will be replaced with the tilenumbers")
@@ -153,11 +163,15 @@ final class CommandLineParams {
         options.addOption(borderOption);
         options.addOption(polygonOption);
         options.addOption(dateOption);
-        options.addOption(sizeOption);
         options.addOption(inputOption);
         options.addOption(outputOption);
         options.addOption(zoomOption);
         options.addOption(optimizeOption);
+
+        var exclusiveGroup = new OptionGroup();
+        exclusiveGroup.addOption(sizeOption);
+        exclusiveGroup.addOption(maxIdsOption);
+        options.addOptionGroup(exclusiveGroup);
 
         /* parse the command line arguments */
 
@@ -198,8 +212,18 @@ final class CommandLineParams {
                 for (int j = 0; j < 3; j++) {
                     mapSizes[j] = Integer.valueOf(vals[j]);
                 }
+                maxIds = null;
+            } else if (line.hasOption(OPT_MAX_IDS)) {
+                String tmp = line.getOptionValue(LONG_OPT_MAX_IDS);
+                String[] vals = tmp.split(",");
+                maxIds = new long[3];
+                for (int j = 0; j < 3; j++) {
+                    maxIds[j] = Long.parseLong(vals[j]);
+                }
+                mapSizes = null;
             } else {
                 mapSizes = new int[] { Const.NODE_MAP_SIZE, Const.WAY_MAP_SIZE, Const.RELATION_MAP_SIZE };
+                maxIds = null;
             }
 
             if (line.hasOption(OPT_MAXFILES)) {
