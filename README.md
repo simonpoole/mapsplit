@@ -1,6 +1,6 @@
 [![build status](https://github.com/simonpoole/mapsplit/actions/workflows/javalib.yml/badge.svg)](https://github.com/simonpoole/mapsplit/actions) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=alert_status)](https://sonarcloud.io/dashboard?id=mapsplit) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=coverage)](https://sonarcloud.io/dashboard?id=mapsplit) [![sonarcloud bugs](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=bugs)](https://sonarcloud.io/component_measures?id=mapsplit&metric=bugs) [![sonarcould maintainability](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Maintainability) [![sonarcloud security](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=security_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Security) [![sonarcloud reliability](https://sonarcloud.io/api/project_badges/measure?project=mapsplit&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=mapsplit&metric=Reliability)
 
-### General
+### General test
 
 MapSplit is a small application to split a larger OpenStreetMap data file into tiles. 
 
