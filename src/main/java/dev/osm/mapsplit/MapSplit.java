@@ -45,6 +45,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.EntityContainer;
 import org.openstreetmap.osmosis.core.container.v0_6.NodeContainer;
@@ -71,8 +72,8 @@ public class MapSplit {
 
     private static final String MAPSPLIT_TAG = "mapsplit";
 
-    private static final String PBF_EXT = ".osm.pbf";
-    private static final List<String> KNOWN_PBF_EXTS = List.of(".pbf", ".osm.pbf");
+    private static final String       PBF_EXT        = ".osm.pbf";
+    private static final List<String> KNOWN_PBF_EXTS = List.of(".pbf", PBF_EXT);
 
     private static final Logger LOGGER = Logger.getLogger(MapSplit.class.getName());
 
@@ -643,7 +644,15 @@ public class MapSplit {
         }
     }
 
-    private static boolean hasTag(Entity e, String key, String value) {
+    /**
+     * Check if an Entity has a tag
+     * 
+     * @param e the Entity to inpsect
+     * @param key tag key
+     * @param value tag value
+     * @return true if e is tagged with the tag
+     */
+    private static boolean hasTag(@NotNull Entity e, @Nullable String key, @Nullable String value) {
         return e.getTags().stream().anyMatch(tag -> tag.getKey().equals(key) && tag.getValue().equals(value));
     }
 
@@ -1183,7 +1192,7 @@ public class MapSplit {
                             if (basename.contains("%x") && basename.contains("%y")) {
                                 file = basename.replace("%x", Integer.toString(tileX)).replace("%y", Integer.toString(tileY)).replace("%z",
                                         Integer.toString(currentZoom));
-                                if (!KNOWN_PBF_EXTS.stream().anyMatch(file::endsWith)) {
+                                if (KNOWN_PBF_EXTS.stream().noneMatch(file::endsWith)) {
                                     file = file + PBF_EXT;
                                 }
                             } else {
