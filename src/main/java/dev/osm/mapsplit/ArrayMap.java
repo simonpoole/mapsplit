@@ -1,13 +1,12 @@
 package dev.osm.mapsplit;
 
-import static java.lang.Math.min;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import static java.lang.Math.min;
 
 /**
  * data structure that uses huge arrays with the OSM element's ID (the key) as the array index.
@@ -17,72 +16,41 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ArrayMap extends AbstractOsmMap {
 
-    /** maximum size for a single array, see e.g. https://stackoverflow.com/a/8381338/ */
-    private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+    /**
+     * The maximum size for each array.
+     * Must be at most {@link Integer#MAX_VALUE} - 8, see e.g. https://stackoverflow.com/a/8381338/
+     */
+    private static final int MAX_ARRAY_SIZE = 1 << 30;
 
     private final long maxKey;
 
-    /** the basic array for IDs starting at 0. This is always used. */ 
-    private final @NotNull long[] array0;
-
     /**
-     * additional arrays, only used if the maximum ID is large enough to require it.
-     * Not implemented as an array of arrays to avoid the additional indirection.
+     * The arrays containing the tile coordinate information for each key.
+     * All arrays except the last will have a size equal to {@link #MAX_ARRAY_SIZE}.
      */
-    private final @Nullable long[] array1, array2, array3, array4, array5;
+    private final long @NotNull[] @NotNull[] arrays;
 
     /**
-     * only keys in range [0, maxKey] will work
-     * 
+     * Creates an empty data structure with a fixed maximum ID.
+     *
+     * @param maxKey  the largest OSM element ID supported by this instance. Only keys in range [0, maxKey] will work.
      * @throws IllegalArgumentException  if the requested maximum value is too large
      */
     public ArrayMap(long maxKey) {
 
         this.maxKey = maxKey;
 
+        List<long[]> arrays = new ArrayList<>();
+
         long remainingRequiredSize = maxKey + 1;
 
-        this.array0 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-        remainingRequiredSize -= this.array0.length;
-
-        if (remainingRequiredSize > 0) {
-            array1 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-            remainingRequiredSize -= array1.length;
-        } else {
-            array1 = null;
+        while (remainingRequiredSize > 0) {
+            long[] array = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
+            remainingRequiredSize -= array.length;
+            arrays.add(array);
         }
 
-        if (remainingRequiredSize > 0) {
-            array2 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-            remainingRequiredSize -= array2.length;
-        } else {
-            array2 = null;
-        }
-
-        if (remainingRequiredSize > 0) {
-            array3 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-            remainingRequiredSize -= array3.length;
-        } else {
-            array3 = null;
-        }
-
-        if (remainingRequiredSize > 0) {
-            array4 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-            remainingRequiredSize -= array4.length;
-        } else {
-            array4 = null;
-        }
-
-        if (remainingRequiredSize > 0) {
-            array5 = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
-            remainingRequiredSize -= array5.length;
-        } else {
-            array5 = null;
-        }
-
-        if (remainingRequiredSize > 0) {
-            throw new IllegalArgumentException("The requested maximum ID is too large for the current implementation");
-        }
+        this.arrays = arrays.toArray(new long[0][]);
 
     }
 
@@ -126,15 +94,7 @@ public final class ArrayMap extends AbstractOsmMap {
 
     /** returns the array containing the value associated with [key] */
     private final long[] arrayForKey(long key) {
-        switch((int) (key / MAX_ARRAY_SIZE)) {
-        case 0: return array0;
-        case 1: return array1;
-        case 2: return array2;
-        case 3: return array3;
-        case 4: return array4;
-        case 5: return array5;
-        default: throw new IllegalArgumentException("No array for the key " + key + " exists");
-        }
+        return arrays[(int) (key / MAX_ARRAY_SIZE)];
     }
 
     /** returns the index of the value associated with [key], within {@link #arrayForKey(long)} */
