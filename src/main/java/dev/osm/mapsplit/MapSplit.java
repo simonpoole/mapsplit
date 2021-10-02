@@ -140,9 +140,17 @@ public class MapSplit {
     public MapSplit(CommandLineParams params, Date appointmentDate) {
         this.params = params;
         this.appointmentDate = appointmentDate;
-        nmap = new HeapMap(params.mapSizes[0]);
-        wmap = new HeapMap(params.mapSizes[1]);
-        rmap = new HeapMap(params.mapSizes[2]);
+
+        if (params.mapSizes != null) {
+            nmap = new HeapMap(params.mapSizes[0]);
+            wmap = new HeapMap(params.mapSizes[1]);
+            rmap = new HeapMap(params.mapSizes[2]);
+        } else {
+            nmap = new ArrayMap(params.maxIds[0]);
+            wmap = new ArrayMap(params.maxIds[1]);
+            rmap = new ArrayMap(params.maxIds[2]);
+        }
+
         if (params.completeRelations || params.completeAreas) {
             extraWayMap = new HashMap<>();
         }
@@ -656,9 +664,9 @@ public class MapSplit {
         return e.getTags().stream().anyMatch(tag -> tag.getKey().equals(key) && tag.getValue().equals(value));
     }
 
-    int nCount = 0;
-    int wCount = 0;
-    int rCount = 0;
+    long nCount = 0;
+    long wCount = 0;
+    long rCount = 0;
 
     /**
      * Setup the OSM object to tiles mappings
@@ -1450,11 +1458,11 @@ public class MapSplit {
         }
 
         if (params.verbose) {
-            LOGGER.log(Level.INFO, "HeapMap's load:");
+            LOGGER.log(Level.INFO, "Load:");
             LOGGER.log(Level.INFO, "Nodes    : {0}", split.nmap.getLoad());
             LOGGER.log(Level.INFO, "Ways     : {0}", split.wmap.getLoad());
             LOGGER.log(Level.INFO, "Relations: {0}", split.rmap.getLoad());
-            LOGGER.log(Level.INFO, "HeapMap's MissHitRatio:");
+            LOGGER.log(Level.INFO, "MissHitRatio:");
             LOGGER.log(Level.INFO, "Nodes    : {0}", nratio);
             LOGGER.log(Level.INFO, "Ways     : {0}", wratio);
             LOGGER.log(Level.INFO, "Relations: {0}", rratio);

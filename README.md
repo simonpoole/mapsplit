@@ -74,6 +74,11 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
     -t,--timing           output timing information
     -v,--verbose          verbose information during processing
     -M,--mbtiles          store in a MBTiles format sqlite database
+    -x,--max-ids <arg>    n,w,r the maximum id to allow in the node, way and
+                          relation arrays. Using this option will cause
+                          Mapsplit to use a different data structure that is
+                          capable of scaling to the entire planet, but uses a
+                          lot of RAM.
     -z,--zoom <arg>       zoom level to create the tiles at must be between 0 (silly)
                           and 16 (inclusive), default is 13
 
