@@ -2,11 +2,12 @@
     
     6                 4                   3    2 2 22
     3                 8                   2    8 7 54
-    XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY uuuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
+    XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1uuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
 
     X - tile number
     Y - tile number
     u - unused
+    1 - always set to 1. This ensures that the value can be distinguished from empty positions in an array.
     N - bits indicating immediate "neigbours"
     E - extended "neighbour" list used
     n - bits for "short" neighbour index
