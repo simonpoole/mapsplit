@@ -14,6 +14,7 @@ package dev.osm.mapsplit;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.LongStream;
 
 /**
  * This is the central data structure of Mapsplit.
@@ -67,6 +68,12 @@ public interface OsmMap {
     public abstract void update(long key, Collection<Long> tiles);
 
     /**
+     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord)
+     * without neighbor information 
+     */
+    public abstract void updateInt(long key, Collection<Integer> tiles);
+
+    /**
      * returns a list of all tiles this key is in. This contains the base-tile, neighbours and tiles where this key is
      * connected to other keys, e.g. by a way. The format of the integer is (tileX << 16 | tileY).
      * 
@@ -81,7 +88,7 @@ public interface OsmMap {
      * @return the load of the map
      */
     public default double getLoad() {
-        return keys().size() / getCapacity();
+        return keys().count() / getCapacity();
     }
 
     /**
@@ -125,9 +132,10 @@ public interface OsmMap {
     public long getCapacity();
 
     /**
-     * Return all the keys
+     * return all the keys. Implemented using a stream instead of a collection to avoid
+     * having to keep them all in memory at the same time. (There can be a lot of them!)
      * 
-     * @return a List holding all the keys from the map
+     * @return a stream providing all the keys from the map
      */
-    public List<Long> keys();
+    public LongStream keys();
 }

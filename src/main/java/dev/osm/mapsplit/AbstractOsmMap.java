@@ -1,5 +1,7 @@
 package dev.osm.mapsplit;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -115,6 +117,20 @@ abstract public class AbstractOsmMap implements OsmMap {
         }
 
         return result;
+    }
+
+    @Override
+    public void updateInt(long key, Collection<Integer> tiles) {
+
+        List<Long> longTiles = tiles.stream()
+                .map(tile -> createValue(
+                        TileCoord.decodeX(tile),
+                        TileCoord.decodeY(tile),
+                        NEIGHBOURS_NONE))
+                .collect(toList());
+
+        this.update(key, longTiles);
+
     }
 
     /**

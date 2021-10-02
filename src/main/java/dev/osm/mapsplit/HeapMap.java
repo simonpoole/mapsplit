@@ -1,22 +1,8 @@
 package dev.osm.mapsplit;
 
-/*
- * Mapsplit - A simple but fast tile splitter for large OSM data
- * 
- * Written in 2011 by Peda (osm-mapsplit@won2.de)
- * 
- * To the extent possible under law, the author(s) have dedicated all copyright and related and neighboring rights to
- * this software to the public domain worldwide. This software is distributed without any warranty.
- * 
- * You should have received a copy of the CC0 Public Domain Dedication along with this software. If not, see
- * <http://creativecommons.org/publicdomain/zero/1.0/>.
- * 
- * Further work by Simon Poole 2018/19
- */
-
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -225,13 +211,9 @@ public class HeapMap extends AbstractOsmMap {
     }
 
     @Override
-    public List<Long> keys() {
-        List<Long> result = new ArrayList<>();
-        for (int i = 0; i < keys.length; i++) {
-            if (values[i] != 0) {
-                result.add(keys[i] & KEY_MASK);
-            }
-        }
-        return result;
+    public LongStream keys() {
+        return IntStream.range(0, keys.length)
+                .filter(i -> values[i] != 0)
+                .mapToLong(i -> keys[i] & KEY_MASK);
     }
 }
