@@ -40,7 +40,7 @@ import org.jetbrains.annotations.NotNull;
  * 
  */
 //@formatter:on
-abstract public class AbstractOsmMap implements OsmMap {
+public abstract class AbstractOsmMap implements OsmMap {
 
     // see HEAPMAP.md for details
     static final int          TILE_X_SHIFT = 48;
@@ -97,7 +97,7 @@ abstract public class AbstractOsmMap implements OsmMap {
 
         if ((value & TILE_EXT_MASK) != 0) {
             int idx = (int) (value & TILE_MARKER_MASK);
-            result = new ArrayList<Integer>(asList(extendedSet[idx]));
+            result = new ArrayList<>(asList(extendedSet[idx]));
         } else {
             result = parseMarker(value);
         }
@@ -153,6 +153,8 @@ abstract public class AbstractOsmMap implements OsmMap {
      * 
      * This can be used to implement {@link #update(long, Collection)}.
      * 
+     * @param originalValue the original value
+     * @param tiles a collection of tiles to add
      * @return  the updated value
      */
     protected long updateValue(long originalValue, @NotNull Collection<Long> tiles) {
@@ -170,7 +172,7 @@ abstract public class AbstractOsmMap implements OsmMap {
         }
 
         // create a expanded temp set for neighbourhood tiles
-        Collection<Integer> expanded = new TreeSet<Integer>();
+        Collection<Integer> expanded = new TreeSet<>();
         for (long tile : tiles) {
 
             int x = tileX(tile);

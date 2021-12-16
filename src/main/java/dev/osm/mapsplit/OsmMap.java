@@ -17,10 +17,9 @@ import java.util.List;
 import java.util.stream.LongStream;
 
 /**
- * This is the central data structure of Mapsplit.
- * It maps OSM element IDs to the tile(s) each element is located in.
- * As there are three types of OSM elements (node/way/relation),
- * there will be three instances of this kind of data structure.
+ * This is the central data structure of Mapsplit. It maps OSM element IDs to the tile(s) each element is located in. As
+ * there are three types of OSM elements (node/way/relation), there will be three instances of this kind of data
+ * structure.
  */
 public interface OsmMap {
 
@@ -34,8 +33,8 @@ public interface OsmMap {
     public static final int NEIGHBOURS_SOUTH = 2;
 
     /**
-     * we have neighbours in the east, the south, and the south-east.
-     * It's not possible for a node to be in the south and east tile, but not in the south-east tile.
+     * we have neighbours in the east, the south, and the south-east. It's not possible for a node to be in the south
+     * and east tile, but not in the south-east tile.
      */
     public static final int NEIGHBOURS_SOUTH_EAST = 3;
 
@@ -68,8 +67,11 @@ public interface OsmMap {
     public abstract void update(long key, Collection<Long> tiles);
 
     /**
-     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord)
-     * without neighbor information 
+     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord) without
+     * neighbor information
+     * 
+     * @param key the entries key (ID)
+     * @param tiles a Collection of tiles in encoded form without neighbour bits
      */
     public abstract void updateInt(long key, Collection<Integer> tiles);
 
@@ -88,7 +90,7 @@ public interface OsmMap {
      * @return the load of the map
      */
     public default double getLoad() {
-        return keys().count() / getCapacity();
+        return keys().count() / (double) getCapacity();
     }
 
     /**
@@ -132,8 +134,8 @@ public interface OsmMap {
     public long getCapacity();
 
     /**
-     * return all the keys. Implemented using a stream instead of a collection to avoid
-     * having to keep them all in memory at the same time. (There can be a lot of them!)
+     * return all the keys. Implemented using a stream instead of a collection to avoid having to keep them all in
+     * memory at the same time. (There can be a lot of them!)
      * 
      * @return a stream providing all the keys from the map
      */

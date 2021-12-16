@@ -12,47 +12,46 @@ import static java.lang.Math.min;
 /**
  * data structure that uses huge arrays with the OSM element's ID (the key) as the array index.
  * 
- * Because the number of IDs can (and in the case of nodes does) exceed Java's maximum array size,
- * additional arrays are used for higher ids.
+ * Because the number of IDs can (and in the case of nodes does) exceed Java's maximum array size, additional arrays are
+ * used for higher ids.
  */
 public final class ArrayMap extends AbstractOsmMap {
 
     /**
-     * The maximum size for each array.
-     * Must be at most {@link Integer#MAX_VALUE} - 8, see e.g. https://stackoverflow.com/a/8381338/
+     * The maximum size for each array. Must be at most {@link Integer#MAX_VALUE} - 8, see e.g.
+     * https://stackoverflow.com/a/8381338/
      */
     private static final int MAX_ARRAY_SIZE = 1 << 30;
 
     private final long maxKey;
 
     /**
-     * The arrays containing the tile coordinate information for each key.
-     * All arrays except the last will have a size equal to {@link #MAX_ARRAY_SIZE}.
+     * The arrays containing the tile coordinate information for each key. All arrays except the last will have a size
+     * equal to {@link #MAX_ARRAY_SIZE}.
      */
-    private final long @NotNull[] @NotNull[] arrays;
+    private final long @NotNull [] @NotNull [] arrays;
 
     /**
      * Creates an empty data structure with a fixed maximum ID.
      *
-     * @param maxKey  the largest OSM element ID supported by this instance. Only keys in range [0, maxKey] will work.
-     * @throws IllegalArgumentException  if the requested maximum value is too large
+     * @param maxKey the largest OSM element ID supported by this instance. Only keys in range [0, maxKey] will work.
+     * @throws IllegalArgumentException if the requested maximum value is too large
      */
     public ArrayMap(long maxKey) {
 
         this.maxKey = maxKey;
 
-        List<long[]> arrays = new ArrayList<>();
+        List<long[]> arrayList = new ArrayList<>();
 
         long remainingRequiredSize = maxKey + 1;
 
         while (remainingRequiredSize > 0) {
             long[] array = new long[(int) min(remainingRequiredSize, MAX_ARRAY_SIZE)];
             remainingRequiredSize -= array.length;
-            arrays.add(array);
+            arrayList.add(array);
         }
 
-        this.arrays = arrays.toArray(new long[0][]);
-
+        this.arrays = arrayList.toArray(new long[0][]);
     }
 
     @Override
