@@ -23,8 +23,8 @@ public class FlushStreamHandler extends StreamHandler {
     }
 
     @Override
-    public synchronized void publish(final LogRecord record) {
-        super.publish(record);
+    public synchronized void publish(final LogRecord logRecord) {
+        super.publish(logRecord);
         flush();
     }
 }

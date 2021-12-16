@@ -99,13 +99,12 @@ public class MapSplit {
     private final OsmMap rmap;
 
     /**
-     * ways which are members in a relation, 
-     * and whose nodes might therefore need to be added to extra tiles in a second run.
+     * ways which are members in a relation, and whose nodes might therefore need to be added to extra tiles in a second
+     * run.
      * 
-     * If we do not want complete relations, this field is null.
-     * But we may want some or all relations to be complete – that is, we want their way members,
-     * and all nodes of these way members(!), to be part of all tiles the relation itself is in.
-     * Because we do not store a way's nodes, this requires a second read through the input file.
+     * If we do not want complete relations, this field is null. But we may want some or all relations to be complete –
+     * that is, we want their way members, and all nodes of these way members(!), to be part of all tiles the relation
+     * itself is in. Because we do not store a way's nodes, this requires a second read through the input file.
      */
     private Set<Long> relationMemberWayIds = null;
 
@@ -347,7 +346,7 @@ public class MapSplit {
 
             // TODO: make this a bit nicer by delegating the id-generation to the map code
             int c = tx << Const.MAX_ZOOM | ty;
-            tiles.add(((long) c) << HeapMap.TILE_Y_SHIFT);
+            tiles.add(((long) c) << AbstractOsmMap.TILE_Y_SHIFT);
             modifiedTiles.set(c);
         }
     }
@@ -587,8 +586,8 @@ public class MapSplit {
                 }
 
                 // TODO: make this a bit more generic / nicer code :/
-                for (int i : list) {
-                    tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
+                for (Integer i : list) {
+                    tileList.add(((long) i) << AbstractOsmMap.TILE_Y_SHIFT);
                 }
                 break;
 
@@ -611,7 +610,7 @@ public class MapSplit {
                     }
                 }
 
-                for (int i : list) {
+                for (Integer i : list) {
                     tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
                 }
                 break;
@@ -1175,7 +1174,7 @@ public class MapSplit {
                 LOGGER.log(Level.INFO, "Processing {0} tiles for zoom {1}", new Object[] { tileSet.cardinality(), currentZoom });
             }
 
-            int idx = -1; //start at -1 because this will be incremented before the first use
+            int idx = -1; // start at -1 because this will be incremented before the first use
 
             // We might call this code several times if we have more tiles
             // to store than open files allowed
@@ -1347,7 +1346,7 @@ public class MapSplit {
                     try {
                         readerThread.join();
                     } catch (InterruptedException e) { // NOSONAR
-                        LOGGER.log(Level.WARNING, "readerThread interupted " + e.getMessage());
+                        LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
                         throw e;
                     }
                 }
