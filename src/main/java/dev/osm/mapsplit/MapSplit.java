@@ -756,16 +756,8 @@ public class MapSplit {
         if (params.verbose) {
             LOGGER.log(Level.INFO, "Initial pass started");
         }
-        Thread readerThread = new Thread(reader);
-        readerThread.start();
-        while (readerThread.isAlive()) {
-            try {
-                readerThread.join();
-            } catch (InterruptedException e) { // NOSONAR
-                LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
-                throw e;
-            }
-        }
+
+        runThread(new Thread(reader));
 
         if (!complete) {
             throw new IOException("Could not read file fully");
@@ -829,19 +821,28 @@ public class MapSplit {
                 }
             });
 
-            readerThread = new Thread(reader);
-            readerThread.start();
-            while (readerThread.isAlive()) {
-                try {
-                    readerThread.join();
-                } catch (InterruptedException e) { // NOSONAR
-                    LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
-                    throw e;
-                }
-            }
+            runThread(new Thread(reader));
 
             if (!complete) { // NOSONAR
                 throw new IOException("Could not read file fully in second run");
+            }
+        }
+    }
+
+    /**
+     * Start a thread and wait for it to complete
+     * 
+     * @param thread the Thread
+     * @throws InterruptedException if thread is interrupted
+     */
+    private void runThread(@NotNull Thread thread) throws InterruptedException {
+        thread.start();
+        while (thread.isAlive()) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) { // NOSONAR
+                LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
+                throw e;
             }
         }
     }
@@ -1340,16 +1341,7 @@ public class MapSplit {
                 BoundSink sink = new BoundSink();
                 reader.setSink(sink);
 
-                Thread readerThread = new Thread(reader);
-                readerThread.start();
-                while (readerThread.isAlive()) {
-                    try {
-                        readerThread.join();
-                    } catch (InterruptedException e) { // NOSONAR
-                        LOGGER.log(Level.WARNING, "readerThread interupted {0}", e.getMessage());
-                        throw e;
-                    }
-                }
+                runThread(new Thread(reader));
 
                 if (!complete) {
                     throw new IOException("Could not fully read file in storing run");
