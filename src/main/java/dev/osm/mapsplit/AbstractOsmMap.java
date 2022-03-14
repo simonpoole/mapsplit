@@ -15,8 +15,8 @@ import org.jetbrains.annotations.NotNull;
  * 
  * Structure of the values:
  *
- *     6                 4                   3    2 2 22
- *     3                 8                   2    8 7 54
+ *     6                   4                   3     2 2 2
+ *     3                   7                   1     6 4 3
  *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1uuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
  *
  *     X - tile number
