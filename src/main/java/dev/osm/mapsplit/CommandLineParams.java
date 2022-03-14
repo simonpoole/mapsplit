@@ -139,7 +139,7 @@ final class CommandLineParams {
                 .build();
         Option maxIdsOption = Option.builder(OPT_MAX_IDS).longOpt(LONG_OPT_MAX_IDS).hasArg().desc(
                 "n,w,r the maximum id to allow in the node, way and relation arrays. Using this option will cause Mapsplit"
-                        + " to use a different data structure that is capable of scaling to the entire planet, but uses a lot of RAM.")
+                        + " to use a different data structure that is capable of scaling to the entire planet, but will use an amount of memory proportional to the values specified here.")
                 .build();
         Option inputOption = Option.builder(OPT_INPUT).longOpt(LONG_OPT_INPUT).hasArgs().desc("a file in OSM pbf format").required().build();
         Option outputOption = Option.builder(OPT_OUTPUT).longOpt(LONG_OPT_OUTPUT).hasArg().desc(
@@ -148,7 +148,7 @@ final class CommandLineParams {
         Option zoomOption = Option.builder(OPT_ZOOM).longOpt(LONG_OPT_ZOOM).hasArg()
                 .desc("zoom level to create the tiles at must be between 0 and 16 (inclusive), default is 13").build();
         Option optimizeOption = Option.builder(OPT_OPTIMIZE).longOpt(LONG_OPT_OPTIMIZE).hasArg()
-                .desc("optimize the tile stack, agrument is minimum number of Nodes a tile should contain, default is to not optimize").build();
+                .desc("optimize the tile stack, argument is minimum number of Nodes a tile should contain, default is to not optimize").build();
 
         Options options = new Options();
 

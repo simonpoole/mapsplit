@@ -29,12 +29,14 @@ other sources, OpenStreetMap.
 ### Limitations
 
 The current implementation keeps the data structures required for assigning OSM objects to tiles in main memory. With 4GB of main memory 
-you can parse maps with up to 100 million nodes, however, memory usage also depends on the number of tiles that got changed.
+you can parse maps with up to 100 million nodes, however.
 
 The maximum zoom levels tiles can be produced at is 16, as x and y tile numbers are packed in a 32 bit integer during processing. 
 Tiling large areas at zoom level 16 will create large numbers of tiles and should only be used with the optimization pass enabled. 
 
-The data structures used by mapsplit to map OSM objects to tiles are limited to to the maximum size of a JAVA array, a bit less than 2'147'483'647 (nodes, ways and relations separately), further the maximum number of objects that can have an extended tile list (that is essentially anything more than just the immediate neighbor tiles) is limited to a bit more than 8 million.
+The data structures used by mapsplit to map OSM objects to tiles are limited to to the maximum size of a JAVA array, 
+a bit less than 2'147'483'647 (nodes, ways and relations separately), further the maximum number of objects that can have an extended tile list 
+(that is essentially anything more than just the immediate neighbor tiles) is limited to a bit more than 8 million.
 
 Note: the incremental update feature likely doesn't really work and should be replaced. For smaller regions re-tiling from an updated 
 source file is probably faster in any case.
@@ -77,8 +79,8 @@ OpenStreetMap and the magnifying glass logo are trademarks of the OpenStreetMap 
     -x,--max-ids <arg>    n,w,r the maximum id to allow in the node, way and
                           relation arrays. Using this option will cause
                           Mapsplit to use a different data structure that is
-                          capable of scaling to the entire planet, but uses a
-                          lot of RAM.
+                          capable of scaling to the entire planet, but will 
+                          use an amount of memory proportional to the values specified here.
     -z,--zoom <arg>       zoom level to create the tiles at must be between 0 (silly)
                           and 16 (inclusive), default is 13
 
