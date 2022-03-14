@@ -344,8 +344,7 @@ public class MapSplit {
             tx += minX;
             ty += minY;
 
-            // TODO: make this a bit nicer by delegating the id-generation to the map code
-            int c = tx << Const.MAX_ZOOM | ty;
+            int c = TileCoord.encode(tx, ty);
             tiles.add(((long) c) << AbstractOsmMap.TILE_Y_SHIFT);
             modifiedTiles.set(c);
         }
@@ -389,15 +388,15 @@ public class MapSplit {
      * @param neighbour bit map for neighbour tiles
      */
     private void setModifiedTiles(int tx, int ty, int neighbour) {
-        modifiedTiles.set(tx << Const.MAX_ZOOM | ty);
+        modifiedTiles.set(TileCoord.encode(tx, ty));
         if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-            modifiedTiles.set((tx + 1) << Const.MAX_ZOOM | ty);
+            modifiedTiles.set(TileCoord.encode(tx + 1, ty));
         }
         if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-            modifiedTiles.set(tx << Const.MAX_ZOOM | (ty + 1));
+            modifiedTiles.set(TileCoord.encode(tx, ty + 1));
         }
         if (neighbour == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-            modifiedTiles.set((tx + 1) << Const.MAX_ZOOM | (ty + 1));
+            modifiedTiles.set(TileCoord.encode(tx + 1, ty + 1));
         }
     }
 
@@ -951,13 +950,13 @@ public class MapSplit {
      */
     CountResult getCounts(int idx, int zoomDiff, @NotNull Map<Integer, Integer> stats) {
         // determine the counts for the other tiles in the zoomed out tile
-        int x0 = ((idx >>> Const.MAX_ZOOM) >> zoomDiff) << zoomDiff;
-        int y0 = ((idx & (int) Const.MAX_TILE_NUMBER) >> zoomDiff) << zoomDiff;
+        int x0 = (TileCoord.decodeX(idx) >> zoomDiff) << zoomDiff;
+        int y0 = (TileCoord.decodeY(idx) >> zoomDiff) << zoomDiff;
         int side = 2 << (zoomDiff - 1);
         int[] keys = new int[side * side];
         for (int i = 0; i < side; i++) {
             for (int j = 0; j < side; j++) {
-                keys[i * side + j] = ((x0 + i) << Const.MAX_ZOOM) | (y0 + j);
+                keys[i * side + j] = TileCoord.encode(x0 + i, y0 + j);
             }
         }
         Integer[] counts = new Integer[keys.length];
@@ -983,9 +982,9 @@ public class MapSplit {
      * @return packed tile id at newTileZoom
      */
     private int mapToNewTile(int idx, int newTileZoom) {
-        int xNew = (idx >>> Const.MAX_ZOOM) >> (params.zoom - newTileZoom);
-        int yNew = (idx & (int) Const.MAX_TILE_NUMBER) >> (params.zoom - newTileZoom);
-        return xNew << Const.MAX_ZOOM | yNew;
+        int xNew = TileCoord.decodeX(idx) >> (params.zoom - newTileZoom);
+        int yNew = TileCoord.decodeY(idx) >> (params.zoom - newTileZoom);
+        return TileCoord.encode(xNew, yNew);
     }
 
     /**
@@ -1133,8 +1132,8 @@ public class MapSplit {
                 break;
             }
 
-            int tx = idx >>> Const.MAX_ZOOM;
-            int ty = (int) (idx & Const.MAX_TILE_NUMBER);
+            int tx = TileCoord.decodeX(idx);
+            int ty = TileCoord.decodeY(idx);
 
             boolean in = isInside(tx, ty, inside, outside);
 
@@ -1200,8 +1199,8 @@ public class MapSplit {
 
                     if (outFiles.get(idx) == null) {
 
-                        int tileX = idx >>> Const.MAX_ZOOM;
-                        int tileY = (int) (idx & Const.MAX_TILE_NUMBER);
+                        int tileX = TileCoord.decodeX(idx);
+                        int tileY = TileCoord.decodeY(idx);
 
                         OutputStream target = null;
                         if (mbTiles) {
