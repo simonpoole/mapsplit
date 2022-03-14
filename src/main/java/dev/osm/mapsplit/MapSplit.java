@@ -414,19 +414,21 @@ public class MapSplit {
         int neighbour = OsmMap.NEIGHBOURS_NONE;
 
         // check and add border if needed
-        double dx = deltaX(lon);
-        if (lon2tileX(lon + dx) > tileX) {
-            neighbour = OsmMap.NEIGHBOURS_EAST;
-        } else if (lon2tileX(lon - dx) < tileX) {
-            tileX--;
-            neighbour = OsmMap.NEIGHBOURS_EAST;
-        }
-        double dy = deltaY(lat);
-        if (lat2tileY(lat + dy) > tileY) {
-            neighbour += OsmMap.NEIGHBOURS_SOUTH;
-        } else if (lat2tileY(lat - dy) < tileY) {
-            tileY--;
-            neighbour += OsmMap.NEIGHBOURS_SOUTH;
+        if (params.border > 0) {
+            double dx = deltaX(lon);
+            if (lon2tileX(lon + dx) > tileX) {
+                neighbour = OsmMap.NEIGHBOURS_EAST;
+            } else if (lon2tileX(lon - dx) < tileX) {
+                tileX--;
+                neighbour = OsmMap.NEIGHBOURS_EAST;
+            }
+            double dy = deltaY(lat);
+            if (lat2tileY(lat + dy) > tileY) {
+                neighbour += OsmMap.NEIGHBOURS_SOUTH;
+            } else if (lat2tileY(lat - dy) < tileY) {
+                tileY--;
+                neighbour += OsmMap.NEIGHBOURS_SOUTH;
+            }
         }
 
         // mark current tile (and neighbours) to be re-rendered
