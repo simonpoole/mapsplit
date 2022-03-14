@@ -34,9 +34,11 @@ you can parse maps with up to 100 million nodes, however.
 The maximum zoom levels tiles can be produced at is 16, as x and y tile numbers are packed in a 32 bit integer during processing. 
 Tiling large areas at zoom level 16 will create large numbers of tiles and should only be used with the optimization pass enabled. 
 
-The data structures used by mapsplit to map OSM objects to tiles are limited to to the maximum size of a JAVA array, 
-a bit less than 2'147'483'647 (nodes, ways and relations separately), further the maximum number of objects that can have an extended tile list 
-(that is essentially anything more than just the immediate neighbor tiles) is limited to a bit more than 8 million.
+If you need to process more than ~2'147'483'647 elements (nodes, ways and relations separately), use 
+the --max-ids options (set the values to the largest current element ids). While processing is then only limited by available memory, 
+the maximum number of objects that can have an extended tile list (that is the object needs to be copied to more than tiles in the immediate vincinity) 
+is limited to a bit more than 16 million. This restriction will likely be removed in 
+an upcoming release.
 
 Note: the incremental update feature likely doesn't really work and should be replaced. For smaller regions re-tiling from an updated 
 source file is probably faster in any case.
