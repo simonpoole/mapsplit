@@ -15,17 +15,17 @@ import org.jetbrains.annotations.NotNull;
  * 
  * Structure of the values:
  *
- *     6                   4                   3     2 2 2
- *     3                   7                   1     6 4 3
- *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1uuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
+ *     6                   4                   332  2
+ *     3                   7                   109  7
+ *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1ENN xxxx nnnn nnnn nnnn nnnn nnnn nnnn
  *
  *     X - tile number
  *     Y - tile number
- *     u - unused
  *     1 - always set to 1. This ensures that the value can be distinguished from empty positions in an array.
  *     N - bits indicating immediate "neigbours"
  *     E - extended "neighbour" list used
- *     n - bits for "short" neighbour index, in long list mode used as index
+ *     x - additional bits used together with NN in extended list mode
+ *     n - bits for "short" neighbour index, in extended list mode used as index
  *
  *     Tiles indexed in "short" list (T original tile)
  *           -  - 
@@ -45,10 +45,11 @@ public abstract class AbstractOsmMap implements OsmMap {
     private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
     private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    private static final int  TILE_EXT_SHIFT            = 24;
+    private static final int  TILE_EXT_SHIFT            = 30;
     private static final long TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
     private static final long TILE_MARKER_MASK          = 0xFFFFFFl;
-    private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
+    private static final long TILE_EXT_INDEX_MASK       = 0x3FFFFFFFl;
+    private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT - 2;
     private static final long NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
     private static final int  ONE_BIT_SHIFT             = 31;
     private static final long ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
@@ -93,7 +94,7 @@ public abstract class AbstractOsmMap implements OsmMap {
         List<Integer> result;
 
         if ((value & TILE_EXT_MASK) != 0) {
-            int idx = (int) (value & TILE_MARKER_MASK);
+            int idx = (int) (value & TILE_EXT_INDEX_MASK);
             result = new ArrayList<>(asList(extendedSet[idx]));
         } else {
             result = parseMarker(value);
@@ -156,7 +157,7 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         // neighbour list is already too large so we use the "large store"
         if ((val & TILE_EXT_MASK) != 0) {
-            int idx = (int) (val & TILE_MARKER_MASK);
+            int idx = (int) (val & TILE_EXT_INDEX_MASK);
             appendNeighbours(idx, tiles);
             return originalValue;
         }
@@ -239,7 +240,7 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         // if we don't have enough sets, increase the array...
         if (cur >= extendedSet.length) {
-            if (extendedSet.length >= TILE_MARKER_MASK / 2) { // assumes TILE_MARKER_MASK starts at 0
+            if (extendedSet.length >= TILE_EXT_INDEX_MASK / 2) { // assumes TILE_EXT_INDEX_MASK starts at 0
                 throw new IllegalStateException("Too many extended tile entries to expand");
             }
             int[][] tmp = new int[2 * extendedSet.length][];
