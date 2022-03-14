@@ -9,8 +9,7 @@ import java.util.TreeSet;
 
 import org.jetbrains.annotations.NotNull;
 
-//@formatter:off
-/**
+/*-
  * provides implementation aspects shared between multiple {@link OsmMap} subtypes,
  * particularly relating to the interpretation of the map's values.
  * 
@@ -37,9 +36,7 @@ import org.jetbrains.annotations.NotNull;
  *      0   10 11  T 12 13
  *      1   14 15 16 17 18
  *      2   19 20 21 22 23
- * 
  */
-//@formatter:on
 public abstract class AbstractOsmMap implements OsmMap {
 
     // see HEAPMAP.md for details
@@ -48,14 +45,14 @@ public abstract class AbstractOsmMap implements OsmMap {
     private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
     private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    private static final int   TILE_EXT_SHIFT            = 24;
-    private static final long  TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
-    private static final long  TILE_MARKER_MASK          = 0xFFFFFFl;
-    private static final int   NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
-    private static final long  NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
-    private static final int   ONE_BIT_SHIFT             = 31;
-    private static final long  ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
-    private static final int   INITIAL_EXTENDED_SET_SIZE = 1000;
+    private static final int  TILE_EXT_SHIFT            = 24;
+    private static final long TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
+    private static final long TILE_MARKER_MASK          = 0xFFFFFFl;
+    private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
+    private static final long NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
+    private static final int  ONE_BIT_SHIFT             = 31;
+    private static final long ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
+    private static final int  INITIAL_EXTENDED_SET_SIZE = 1000;
 
     private int     extendedBuckets = 0;
     private int[][] extendedSet     = new int[INITIAL_EXTENDED_SET_SIZE][];
@@ -122,12 +119,7 @@ public abstract class AbstractOsmMap implements OsmMap {
     @Override
     public void updateInt(long key, Collection<Integer> tiles) {
 
-        List<Long> longTiles = tiles.stream()
-                .map(tile -> createValue(
-                        TileCoord.decodeX(tile),
-                        TileCoord.decodeY(tile),
-                        NEIGHBOURS_NONE))
-                .collect(toList());
+        List<Long> longTiles = tiles.stream().map(tile -> createValue(TileCoord.decodeX(tile), TileCoord.decodeY(tile), NEIGHBOURS_NONE)).collect(toList());
 
         this.update(key, longTiles);
 
@@ -142,20 +134,18 @@ public abstract class AbstractOsmMap implements OsmMap {
      * @return the value encoding the set of tiles represented by the parameters
      */
     protected long createValue(int tileX, int tileY, int neighbours) {
-        return ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT
-                | ((long) neighbours) << NEIGHBOUR_SHIFT
-                | ONE_BIT_MASK;
+        return ((long) tileX) << TILE_X_SHIFT | ((long) tileY) << TILE_Y_SHIFT | ((long) neighbours) << NEIGHBOUR_SHIFT | ONE_BIT_MASK;
     }
 
     /**
-     * updates a value by adding a set of tiles to it.
-     * Might "overflow" into the list of additional tiles and modify it accordingly.
+     * updates a value by adding a set of tiles to it. Might "overflow" into the list of additional tiles and modify it
+     * accordingly.
      * 
      * This can be used to implement {@link #update(long, Collection)}.
      * 
      * @param originalValue the original value
      * @param tiles a collection of tiles to add
-     * @return  the updated value
+     * @return the updated value
      */
     protected long updateValue(long originalValue, @NotNull Collection<Long> tiles) {
 
@@ -193,7 +183,6 @@ public abstract class AbstractOsmMap implements OsmMap {
         }
 
         // now we use the 24 reserved bits for the tiles list..
-        boolean extend = false;
         for (int tile : expanded) {
 
             int tmpX = TileCoord.decodeX(tile);
@@ -214,19 +203,12 @@ public abstract class AbstractOsmMap implements OsmMap {
             if (dx < 0 || dy < 0 || dx > 4 || dy > 4) {
                 // .. damn, not enough space for "small store"
                 // -> use "large store" instead
-                extend = true;
-                break;
+                return extendToNeighbourSet(originalValue, tiles);
             } else {
                 val |= 1l << idx;
             }
         }
-
-        if (extend) {
-            return extendToNeighbourSet(originalValue, tiles);
-        } else {
-            return val;
-        }
-
+        return val;
     }
 
     /**
@@ -307,6 +289,12 @@ public abstract class AbstractOsmMap implements OsmMap {
         extendedSet[index] = result;
     }
 
+    /**
+     * Get neighboring tiles from bit values
+     * 
+     * @param value the encoded value
+     * @return a list of tiles encoded in an int
+     */
     private List<Integer> parseMarker(long value) {
         List<Integer> result = new ArrayList<>();
         int tx = tileX(value);
