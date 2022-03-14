@@ -613,7 +613,7 @@ public class MapSplit {
                 }
 
                 for (Integer i : list) {
-                    tileList.add(((long) i) << HeapMap.TILE_Y_SHIFT);
+                    tileList.add(((long) i) << AbstractOsmMap.TILE_Y_SHIFT);
                 }
                 break;
             default:
