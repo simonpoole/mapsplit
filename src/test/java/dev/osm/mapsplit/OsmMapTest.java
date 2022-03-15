@@ -14,6 +14,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
+
 @RunWith(Parameterized.class)
 public class OsmMapTest {
 
@@ -26,7 +29,7 @@ public class OsmMapTest {
 
     @Parameterized.Parameters
     public static Collection<Supplier<AbstractOsmMap>> testees() {
-       return List.of(() -> new ArrayMap(100), () -> new HeapMap(100));
+        return List.of(() -> new ArrayMap(100), () -> new HeapMap(100));
     }
 
     @Test
@@ -39,7 +42,7 @@ public class OsmMapTest {
 
         /* put some entries into the tile and its eastern neighbor */
 
-        map.put(42, tileX , tileY, OsmMap.NEIGHBOURS_NONE);
+        map.put(42, tileX, tileY, OsmMap.NEIGHBOURS_NONE);
         map.put(0, tileX, tileY, OsmMap.NEIGHBOURS_EAST);
         map.put(100, tileX + 1, tileY, OsmMap.NEIGHBOURS_NONE);
 
@@ -54,9 +57,7 @@ public class OsmMapTest {
 
         /* update one of the values and check again */
 
-        map.update(42, List.of(
-                map.createValue(tileX + 1, tileY, OsmMap.NEIGHBOURS_NONE),
-                map.createValue(tileX, tileY + 1, OsmMap.NEIGHBOURS_NONE)));
+        map.update(42, LongList.of(map.createValue(tileX + 1, tileY, OsmMap.NEIGHBOURS_NONE), map.createValue(tileX, tileY + 1, OsmMap.NEIGHBOURS_NONE)));
 
         assertEquals(3, map.getAllTiles(42).size());
 
@@ -88,7 +89,7 @@ public class OsmMapTest {
         assertEquals(0, map.tileY(value1));
         assertEquals(4, map.getAllTiles(1).size());
 
-        map.update(2, List.of(map.createValue(0, 0, OsmMap.NEIGHBOURS_NONE)));
+        map.update(2, LongList.of(map.createValue(0, 0, OsmMap.NEIGHBOURS_NONE)));
         assertTrue(map.getAllTiles(0).contains(0 << 16 | 0));
 
     }
@@ -106,7 +107,7 @@ public class OsmMapTest {
             listOfTiles.add(map.createValue(10000 + i, 500, OsmMap.NEIGHBOURS_NONE));
 
             map.put(42, 10000, 500, OsmMap.NEIGHBOURS_NONE);
-            map.update(42, new ArrayList<>(listOfTiles));
+            map.update(42, new LongArrayList(listOfTiles));
 
             assertEquals(1 + i, map.getAllTiles(42).size());
 

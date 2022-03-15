@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -67,6 +66,19 @@ import ch.poole.geo.mbtiles4j.MBTilesWriter;
 import ch.poole.geo.mbtiles4j.model.MetadataEntry;
 import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
+import it.unimi.dsi.fastutil.ints.Int2ByteMap;
+import it.unimi.dsi.fastutil.ints.Int2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntCollection;
+import it.unimi.dsi.fastutil.ints.IntIterable;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongCollection;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 public class MapSplit {
 
@@ -114,13 +126,13 @@ public class MapSplit {
     private final Map<Integer, UnsignedSparseBitSet> optimizedModifiedTiles = new HashMap<>();
 
     // the serializer (OSM writers) for any modified tile
-    private Map<Integer, OsmosisSerializer> outFiles;
+    private Int2ObjectOpenHashMap<OsmosisSerializer> outFiles;
 
     // output for mbtiles
-    private Map<Integer, ByteArrayOutputStream> outBlobs;
+    private Int2ObjectOpenHashMap<ByteArrayOutputStream> outBlobs;
 
     // new zoom levels for tiles during optimization
-    private final Map<Integer, Byte> zoomMap = new HashMap<>();
+    private final Int2ByteOpenHashMap zoomMap = new Int2ByteOpenHashMap();
 
     // relations with potential forward references
     private final Set<Relation> postProcessRelations = new HashSet<>();
@@ -451,14 +463,14 @@ public class MapSplit {
     private void addWayToMap(@NotNull Way way) {
 
         boolean modified = way.getTimestamp().after(appointmentDate);
-        Set<Long> tileList = new TreeSet<>();
+        LongSet tileList = new LongOpenHashSet();
 
         // mark the latest changes made to this map
         if (way.getTimestamp().after(latestDate)) {
             latestDate = way.getTimestamp();
         }
 
-        List<Long> tiles = new ArrayList<>();
+        LongArrayList tiles = new LongArrayList();
         for (WayNode wayNode : way.getWayNodes()) {
             // get tileNrs for given node
             long tile = nmap.get(wayNode.getNodeId());
@@ -515,7 +527,7 @@ public class MapSplit {
      * @param way the Way we are processing
      * @param tileList the List of tiles, encoded with {@link TileCoord}
      */
-    private void addWayNodesToMap(@NotNull Way way, @NotNull Collection<Integer> tileList) {
+    private void addWayNodesToMap(@NotNull Way way, @NotNull IntCollection tileList) {
         for (WayNode wayNode : way.getWayNodes()) {
             // update map so that the node knows about any additional
             // tile it has to be stored in
@@ -531,7 +543,7 @@ public class MapSplit {
     private void addRelationToMap(@NotNull Relation r) {
 
         boolean modified = r.getTimestamp().after(appointmentDate);
-        Collection<Long> tileList = new TreeSet<>();
+        LongCollection tileList = new LongOpenHashSet();
 
         boolean nodeWarned = false; // suppress multiple warnings about missing Nodes
         boolean wayWarned = false; // suppress multiple warnings about missing Ways
@@ -567,7 +579,7 @@ public class MapSplit {
                 break;
 
             case Way:
-                List<Integer> list = wmap.getAllTiles(m.getMemberId());
+                IntArrayList list = wmap.getAllTiles(m.getMemberId());
 
                 // The referenced way is not in our data set
                 if (list == null) {
@@ -579,13 +591,12 @@ public class MapSplit {
                 }
 
                 if (modified) {
-                    for (Integer i : list) {
+                    for (int i : list) {
                         modifiedTiles.set(i);
                     }
                 }
 
-                // TODO: make this a bit more generic / nicer code :/
-                for (Integer i : list) {
+                for (int i : list) {
                     tileList.add(((long) i) << AbstractOsmMap.TILE_Y_SHIFT);
                 }
                 break;
@@ -609,7 +620,7 @@ public class MapSplit {
                     }
                 }
 
-                for (Integer i : list) {
+                for (int i : list) {
                     tileList.add(((long) i) << AbstractOsmMap.TILE_Y_SHIFT);
                 }
                 break;
@@ -626,7 +637,7 @@ public class MapSplit {
 
         // no need to fill tile list here as that will have already happened for any element with geometry
 
-        long val = tileList.iterator().next();
+        long val = tileList.iterator().nextLong();
         int tx = rmap.tileX(val);
         int ty = rmap.tileY(val);
 
@@ -803,7 +814,7 @@ public class MapSplit {
                     if (ec instanceof WayContainer) {
                         Way w = ((WayContainer) ec).getEntity();
                         if (relationMemberWayIds.contains(w.getId())) {
-                            List<Integer> tileList = wmap.getAllTiles(w.getId());
+                            IntArrayList tileList = wmap.getAllTiles(w.getId());
                             addWayNodesToMap(w, tileList);
                         }
                     }
@@ -861,17 +872,17 @@ public class MapSplit {
         // at high zoom levels this will contains
         // lots of Nodes that are in more than
         // one tile
-        Map<Integer, Integer> stats = new HashMap<>();
+        Int2IntOpenHashMap stats = new Int2IntOpenHashMap();
         nmap.keys().forEach((long k) -> {
-            List<Integer> tiles = nmap.getAllTiles(k);
+            IntArrayList tiles = nmap.getAllTiles(k);
             if (tiles != null) {
-                for (Integer t : tiles) {
-                    Integer count = stats.get(t);
-                    if (count != null) {
+                for (int t : tiles) {
+                    if (stats.containsKey(t)) {
+                        int count = stats.get(t);
                         count++;
-                        stats.put(t, count);
+                        stats.replace(t, count);
                     } else {
-                        stats.put(t, 1);
+                        stats.putIfAbsent(t, 1);
                     }
                 }
             } else {
@@ -879,9 +890,9 @@ public class MapSplit {
             }
         });
         long nodeCount = 0;
-        List<Integer> keys = new ArrayList<>(stats.keySet());
+        IntArrayList keys = new IntArrayList(stats.keySet());
         Collections.sort(keys);
-        for (Integer key : keys) {
+        for (int key : keys) {
             int value = stats.get(key);
             nodeCount += value;
             if (!zoomMap.containsKey(key)) { // not mapped
@@ -914,9 +925,9 @@ public class MapSplit {
                 }
             }
         }
-        for (Entry<Integer, Byte> optimzedTile : zoomMap.entrySet()) {
-            int idx = optimzedTile.getKey();
-            int newTileZoom = optimzedTile.getValue();
+        for (Int2ByteMap.Entry optimzedTile : zoomMap.int2ByteEntrySet()) {
+            int idx = optimzedTile.getIntKey();
+            int newTileZoom = optimzedTile.getByteValue();
             modifiedTiles.clear(idx);
             idx = mapToNewTile(idx, newTileZoom);
             UnsignedSparseBitSet tileSet = optimizedModifiedTiles.get(newTileZoom);
@@ -1181,9 +1192,9 @@ public class MapSplit {
             while (true) {
 
                 complete = false;
-                outFiles = new HashMap<>();
+                outFiles = new Int2ObjectOpenHashMap<>();
                 if (mbTiles) {
-                    outBlobs = new HashMap<>();
+                    outBlobs = new Int2ObjectOpenHashMap<>();
                 }
 
                 // Setup out-files...
@@ -1248,8 +1259,8 @@ public class MapSplit {
 
                 class BoundSink implements Sink {
 
-                    Bound        overallBounds = null;
-                    Set<Integer> mappedTiles   = new HashSet<>();
+                    Bound          overallBounds = null;
+                    IntOpenHashSet mappedTiles   = new IntOpenHashSet();
 
                     /**
                      * Get the overall bounds of the data
@@ -1269,7 +1280,7 @@ public class MapSplit {
                     public void process(EntityContainer ec) {
                         long id = ec.getEntity().getId();
 
-                        Iterable<Integer> tiles;
+                        IntIterable tiles;
 
                         if (ec instanceof NodeContainer) {
                             tiles = nmap.getAllTiles(id);
@@ -1303,11 +1314,10 @@ public class MapSplit {
                             for (int i : tiles) {
                                 // map original zoom tiles to optimized ones
                                 // and remove duplicates
-                                Byte newZoom = zoomMap.get(i);
-                                if (newZoom != null) {
+                                byte newZoom = (byte) params.zoom;
+                                if (zoomMap.containsKey(i)) {
+                                    newZoom = zoomMap.get(i);
                                     i = mapToNewTile(i, newZoom);
-                                } else {
-                                    newZoom = (byte) params.zoom;
                                 }
                                 if (currentZoom == newZoom) {
                                     mappedTiles.add(i);
@@ -1352,16 +1362,17 @@ public class MapSplit {
 
                 long writingStart = System.currentTimeMillis();
                 // Finish and close files...
-                for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
+                for (Int2ObjectMap.Entry<OsmosisSerializer> entry : outFiles.int2ObjectEntrySet()) {
                     OsmosisSerializer ser = entry.getValue();
                     ser.complete();
                     ser.flush();
                     ser.close();
                     if (mbTiles) {
-                        int tileX = entry.getKey() >>> Const.MAX_ZOOM;
-                        int tileY = (int) (entry.getKey() & Const.MAX_TILE_NUMBER);
+                        final int key = entry.getIntKey();
+                        int tileX = key >>> Const.MAX_ZOOM;
+                        int tileY = (int) (key & Const.MAX_TILE_NUMBER);
                         int y = ymax - tileY - 1; // TMS scheme
-                        ByteArrayOutputStream blob = outBlobs.get(entry.getKey());
+                        ByteArrayOutputStream blob = outBlobs.get(key);
                         try {
                             w.addTile(blob.toByteArray(), currentZoom, tileX, y);
                         } catch (MBTilesWriteException e) { // NOSONAR

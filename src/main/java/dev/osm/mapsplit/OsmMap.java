@@ -13,8 +13,11 @@ package dev.osm.mapsplit;
  */
 
 import java.util.Collection;
-import java.util.List;
 import java.util.stream.LongStream;
+
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntCollection;
+import it.unimi.dsi.fastutil.longs.LongCollection;
 
 /**
  * This is the central data structure of Mapsplit. It maps OSM element IDs to the tile(s) each element is located in. As
@@ -64,7 +67,7 @@ public interface OsmMap {
      * @param key the entries key (ID)
      * @param tiles a Collection of tiles in encoded form including neighbour bits
      */
-    public abstract void update(long key, Collection<Long> tiles);
+    public abstract void update(long key, LongCollection tiles);
 
     /**
      * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord) without
@@ -73,7 +76,7 @@ public interface OsmMap {
      * @param key the entries key (ID)
      * @param tiles a Collection of tiles in encoded form without neighbour bits
      */
-    public abstract void updateInt(long key, Collection<Integer> tiles);
+    public abstract void updateInt(long key, IntCollection tiles);
 
     /**
      * returns a list of all tiles this key is in. This contains the base-tile, neighbours and tiles where this key is
@@ -82,7 +85,7 @@ public interface OsmMap {
      * @param key the node, way or relation we're looking at
      * @return a list of all tiles where this key is used
      */
-    public abstract List<Integer> getAllTiles(long key);
+    public abstract IntArrayList getAllTiles(long key);
 
     /**
      * for debugging this method tells you how much of the buckets are used. A load < 0,5 is desirable for good speed
