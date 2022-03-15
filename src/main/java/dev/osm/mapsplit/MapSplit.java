@@ -1340,12 +1340,17 @@ public class MapSplit {
                 BoundSink sink = new BoundSink();
                 reader.setSink(sink);
 
+                long processingStart = System.currentTimeMillis();
                 runThread(new Thread(reader));
+                if (params.timing) {
+                    LOGGER.log(Level.INFO, "Processing tile block took {0} ms", System.currentTimeMillis() - processingStart);
+                }
 
                 if (!complete) {
                     throw new IOException("Could not fully read file in storing run");
                 }
 
+                long writingStart = System.currentTimeMillis();
                 // Finish and close files...
                 for (Entry<Integer, OsmosisSerializer> entry : outFiles.entrySet()) {
                     OsmosisSerializer ser = entry.getValue();
@@ -1366,6 +1371,9 @@ public class MapSplit {
                     }
                 }
 
+                if (params.timing) {
+                    LOGGER.log(Level.INFO, "Writing tile block took {0} ms", System.currentTimeMillis() - writingStart);
+                }
                 if (params.verbose) {
                     LOGGER.log(Level.INFO, "Wrote {0} tiles, continuing with next block of tiles", outFiles.size());
                 }
