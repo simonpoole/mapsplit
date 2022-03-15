@@ -515,10 +515,8 @@ public class MapSplit {
      * @param way the Way we are processing
      * @param tileList the List of tiles, encoded with {@link TileCoord}
      */
-    private void addExtraWayToMap(@NotNull Way way, @NotNull Collection<Integer> tileList) {
-
+    private void addWayNodesToMap(@NotNull Way way, @NotNull Collection<Integer> tileList) {
         for (WayNode wayNode : way.getWayNodes()) {
-
             // update map so that the node knows about any additional
             // tile it has to be stored in
             nmap.updateInt(wayNode.getNodeId(), tileList);
@@ -806,7 +804,7 @@ public class MapSplit {
                         Way w = ((WayContainer) ec).getEntity();
                         if (relationMemberWayIds.contains(w.getId())) {
                             List<Integer> tileList = wmap.getAllTiles(w.getId());
-                            addExtraWayToMap(w, tileList);
+                            addWayNodesToMap(w, tileList);
                         }
                     }
                 }
