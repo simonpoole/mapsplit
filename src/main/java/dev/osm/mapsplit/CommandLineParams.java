@@ -88,10 +88,10 @@ final class CommandLineParams {
     final boolean mbTiles;
 
     /** sizes of the {@link HeapMap}s for OSM objects. Either this or {@link #maxIds} will be set. */
-    final int @Nullable[] mapSizes;
+    final int @Nullable [] mapSizes;
 
     /** largest ID for each of the OSM object types. This will cause {@link ArrayMap}s to be used. */
-    final long @Nullable[] maxIds;
+    final long @Nullable [] maxIds;
 
     /** maximum number of files/tiles to have open at the same time */
     final int maxFiles;
@@ -137,8 +137,8 @@ final class CommandLineParams {
         Option sizeOption = Option.builder(OPT_SIZE).longOpt(LONG_OPT_SIZE).hasArg().desc(
                 "n,w,r the initial size for the node-, way- and relation maps to use (should be at least twice the number of IDs). If not supplied, defaults will be taken.")
                 .build();
-        Option maxIdsOption = Option.builder(OPT_MAX_IDS).longOpt(LONG_OPT_MAX_IDS).hasArg().desc(
-                "n,w,r the maximum id to allow in the node, way and relation arrays. Using this option will cause Mapsplit"
+        Option maxIdsOption = Option.builder(OPT_MAX_IDS).longOpt(LONG_OPT_MAX_IDS).hasArg()
+                .desc("n,w,r the maximum id to allow in the node, way and relation arrays. Using this option will cause Mapsplit"
                         + " to use a different data structure that is capable of scaling to the entire planet, but will use an amount of memory proportional to the values specified here.")
                 .build();
         Option inputOption = Option.builder(OPT_INPUT).longOpt(LONG_OPT_INPUT).hasArgs().desc("a file in OSM pbf format").required().build();
@@ -233,23 +233,23 @@ final class CommandLineParams {
                 maxFiles = -1;
             }
 
-            double border = 0.0;
+            double tempBorder = 0.0;
             if (line.hasOption(OPT_BORDER)) {
                 String tmp = line.getOptionValue(LONG_OPT_BORDER);
                 try {
-                    border = Double.valueOf(tmp);
-                    if (border < 0) {
-                        border = 0;
+                    tempBorder = Double.valueOf(tmp);
+                    if (tempBorder < 0) {
+                        tempBorder = 0;
                     }
-                    if (border >= 0.5) {
+                    if (tempBorder >= 0.5) {
                         logger.log(Level.WARNING, "border value must be less than 0.5");
-                        border = 0.4999;
+                        tempBorder = 0.4999;
                     }
                 } catch (NumberFormatException e) {
                     logger.log(Level.WARNING, "Could not parse border parameter, falling back to defaults");
                 }
             }
-            this.border = border;
+            this.border = tempBorder;
 
             if (line.hasOption(OPT_ZOOM)) {
                 String tmp = line.getOptionValue(LONG_OPT_ZOOM);
@@ -265,7 +265,7 @@ final class CommandLineParams {
                 nodeLimit = 0;
             }
 
-        } catch (ParseException | NumberFormatException exp) {
+        } catch (ParseException | NumberFormatException exp) { // NOSONAR
             logger.log(Level.WARNING, exp.getMessage());
             new HelpFormatter().printHelp(COMMAND_NAME, options);
             throw new IllegalArgumentException(exp);
