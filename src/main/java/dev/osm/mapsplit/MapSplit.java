@@ -31,11 +31,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -66,6 +64,8 @@ import ch.poole.geo.mbtiles4j.MBTilesWriter;
 import ch.poole.geo.mbtiles4j.model.MetadataEntry;
 import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectMap;
+import it.unimi.dsi.fastutil.bytes.Byte2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ByteMap;
 import it.unimi.dsi.fastutil.ints.Int2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -123,7 +123,7 @@ public class MapSplit {
     // a bitset telling the algorithm which tiles need to be re-renderd
     private final UnsignedSparseBitSet modifiedTiles = new UnsignedSparseBitSet();
 
-    private final Map<Integer, UnsignedSparseBitSet> optimizedModifiedTiles = new HashMap<>();
+    private final Byte2ObjectOpenHashMap<UnsignedSparseBitSet> optimizedModifiedTiles = new Byte2ObjectOpenHashMap<>();
 
     // the serializer (OSM writers) for any modified tile
     private Int2ObjectOpenHashMap<OsmosisSerializer> outFiles;
@@ -174,7 +174,7 @@ public class MapSplit {
             relationMemberWayIds = new HashSet<>();
         }
 
-        optimizedModifiedTiles.put(params.zoom, modifiedTiles);
+        optimizedModifiedTiles.put((byte) params.zoom, modifiedTiles);
     }
 
     /**
@@ -927,7 +927,7 @@ public class MapSplit {
         }
         for (Int2ByteMap.Entry optimzedTile : zoomMap.int2ByteEntrySet()) {
             int idx = optimzedTile.getIntKey();
-            int newTileZoom = optimzedTile.getByteValue();
+            byte newTileZoom = optimzedTile.getByteValue();
             modifiedTiles.clear(idx);
             idx = mapToNewTile(idx, newTileZoom);
             UnsignedSparseBitSet tileSet = optimizedModifiedTiles.get(newTileZoom);
@@ -943,7 +943,7 @@ public class MapSplit {
         }
     }
 
-    class CountResult {
+    private class CountResult {
         int       total;
         int[]     keys;
         Integer[] counts;
@@ -957,7 +957,7 @@ public class MapSplit {
      * @param stats a map containing the per tile stats
      * @return a CountResult object
      */
-    CountResult getCounts(int idx, int zoomDiff, @NotNull Map<Integer, Integer> stats) {
+    private CountResult getCounts(int idx, int zoomDiff, @NotNull Map<Integer, Integer> stats) {
         // determine the counts for the other tiles in the zoomed out tile
         int x0 = (TileCoord.decodeX(idx) >> zoomDiff) << zoomDiff;
         int y0 = (TileCoord.decodeY(idx) >> zoomDiff) << zoomDiff;
@@ -1174,9 +1174,9 @@ public class MapSplit {
         }
         Bound bounds = null;
         int minZoom = params.zoom;
-        for (Entry<Integer, UnsignedSparseBitSet> omt : optimizedModifiedTiles.entrySet()) {
+        for (Byte2ObjectMap.Entry<UnsignedSparseBitSet> omt : optimizedModifiedTiles.byte2ObjectEntrySet()) {
             final UnsignedSparseBitSet tileSet = omt.getValue();
-            final int currentZoom = omt.getKey();
+            final int currentZoom = omt.getByteKey();
             if (currentZoom < minZoom) {
                 minZoom = currentZoom;
             }
@@ -1388,7 +1388,8 @@ public class MapSplit {
                 if (params.verbose) {
                     LOGGER.log(Level.INFO, "Wrote {0} tiles, continuing with next block of tiles", outFiles.size());
                 }
-                // remove mappings form this pass
+
+                // remove mappings from this pass
                 outFiles.clear();
                 if (mbTiles) {
                     outBlobs.clear();
