@@ -144,7 +144,7 @@ public abstract class AbstractOsmMap implements OsmMap {
      * updates a value by adding a set of tiles to it. Might "overflow" into the list of additional tiles and modify it
      * accordingly.
      * 
-     * This can be used to implement {@link #update(long, Collection)}.
+     * This can be used to implement {@link #update(long, LongCollection)}.
      * 
      * @param originalValue the original value
      * @param tiles a collection of tiles to add

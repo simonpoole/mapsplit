@@ -12,7 +12,6 @@ package dev.osm.mapsplit;
  * <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-import java.util.Collection;
 import java.util.stream.LongStream;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -70,7 +69,7 @@ public interface OsmMap {
     public abstract void update(long key, LongCollection tiles);
 
     /**
-     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord) without
+     * variant of {@link #update(long, LongCollection)} that takes individual tile coords (encoded with TileCoord) without
      * neighbor information
      * 
      * @param key the entries key (ID)
