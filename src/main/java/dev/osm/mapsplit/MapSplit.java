@@ -41,6 +41,7 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import it.unimi.dsi.fastutil.ints.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.openstreetmap.osmosis.core.container.v0_6.BoundContainer;
@@ -66,15 +67,6 @@ import crosby.binary.osmosis.OsmosisReader;
 import crosby.binary.osmosis.OsmosisSerializer;
 import it.unimi.dsi.fastutil.bytes.Byte2ObjectMap;
 import it.unimi.dsi.fastutil.bytes.Byte2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ByteMap;
-import it.unimi.dsi.fastutil.ints.Int2ByteOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.ints.IntIterable;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongCollection;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -579,7 +571,7 @@ public class MapSplit {
                 break;
 
             case Way:
-                IntArrayList list = wmap.getAllTiles(m.getMemberId());
+                IntSet list = wmap.getAllTiles(m.getMemberId());
 
                 // The referenced way is not in our data set
                 if (list == null) {
@@ -814,8 +806,7 @@ public class MapSplit {
                     if (ec instanceof WayContainer) {
                         Way w = ((WayContainer) ec).getEntity();
                         if (relationMemberWayIds.contains(w.getId())) {
-                            IntArrayList tileList = wmap.getAllTiles(w.getId());
-                            addWayNodesToMap(w, tileList);
+                            addWayNodesToMap(w, wmap.getAllTiles(w.getId()));
                         }
                     }
                 }
@@ -874,7 +865,7 @@ public class MapSplit {
         // one tile
         Int2IntOpenHashMap stats = new Int2IntOpenHashMap();
         nmap.keys().forEach((long k) -> {
-            IntArrayList tiles = nmap.getAllTiles(k);
+            IntSet tiles = nmap.getAllTiles(k);
             if (tiles != null) {
                 for (int t : tiles) {
                     if (stats.containsKey(t)) {
