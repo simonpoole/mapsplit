@@ -96,7 +96,7 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         if ((value & TILE_EXT_MASK) != 0) {
             int idx = (int) (value & TILE_EXT_INDEX_MASK);
-            result = asList(extendedSet[idx]);
+            result = new IntArrayList(extendedSet[idx]);
             result.add(TileCoord.encode(tx, ty));
         } else {
             result = parseNeighbourBits(value);
@@ -367,18 +367,4 @@ public abstract class AbstractOsmMap implements OsmMap {
         return result;
     }
 
-    /**
-     * Return a list with the contents of an int array
-     * 
-     * @param set the array
-     * @return a List of Integer
-     */
-    @NotNull
-    private static IntArrayList asList(@NotNull int[] set) {
-        IntArrayList result = new IntArrayList();
-        for (int i = 0; i < set.length; i++) {
-            result.add(set[i]);
-        }
-        return result;
-    }
 }
