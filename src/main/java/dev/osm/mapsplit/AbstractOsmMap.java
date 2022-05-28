@@ -263,18 +263,8 @@ public abstract class AbstractOsmMap implements OsmMap {
         for (long l : tiles) {
             int tx = tileX(l);
             int ty = tileY(l);
-            int neighbour = neighbour(l);
-
             set.add(TileCoord.encode(tx, ty));
-            if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                set.add(TileCoord.encode(tx + 1, ty));
-            }
-            if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                set.add(TileCoord.encode(tx, ty + 1));
-            }
-            if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                set.add(TileCoord.encode(tx + 1, ty + 1));
-            }
+            parseNnBits(set, neighbour(l), tx, ty);
         }
 
         extendedSet[index] = set.toIntArray();
