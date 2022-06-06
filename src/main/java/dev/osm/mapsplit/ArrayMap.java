@@ -1,13 +1,14 @@
 package dev.osm.mapsplit;
 
-import org.jetbrains.annotations.NotNull;
+import static java.lang.Math.min;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.LongStream;
 
-import static java.lang.Math.min;
+import org.jetbrains.annotations.NotNull;
+
+import it.unimi.dsi.fastutil.longs.LongCollection;
 
 /**
  * data structure that uses huge arrays with the OSM element's ID (the key) as the array index.
@@ -65,7 +66,7 @@ public final class ArrayMap extends AbstractOsmMap {
     }
 
     @Override
-    public final void update(long key, Collection<Long> tiles) {
+    public final void update(long key, LongCollection tiles) {
         long[] array = arrayForKey(key);
         int indexWithinArray = indexWithinArray(key);
         array[indexWithinArray] = updateValue(array[indexWithinArray], tiles);

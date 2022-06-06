@@ -1,13 +1,12 @@
 package dev.osm.mapsplit;
 
-import static java.util.stream.Collectors.toList;
-
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.TreeSet;
 
+import it.unimi.dsi.fastutil.ints.*;
 import org.jetbrains.annotations.NotNull;
+
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongCollection;
 
 /*-
  * provides implementation aspects shared between multiple {@link OsmMap} subtypes,
@@ -15,17 +14,17 @@ import org.jetbrains.annotations.NotNull;
  * 
  * Structure of the values:
  *
- *     6                   4                   3     2 2 2
- *     3                   7                   1     6 4 3
- *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1uuu uNNE nnnn nnnn nnnn nnnn nnnn nnnn
+ *     6                   4                   332  2
+ *     3                   7                   109  7
+ *     XXXX XXXX XXXX XXXX YYYY YYYY YYYY YYYY 1ENN xxxx nnnn nnnn nnnn nnnn nnnn nnnn
  *
  *     X - tile number
  *     Y - tile number
- *     u - unused
  *     1 - always set to 1. This ensures that the value can be distinguished from empty positions in an array.
  *     N - bits indicating immediate "neigbours"
  *     E - extended "neighbour" list used
- *     n - bits for "short" neighbour index, in long list mode used as index
+ *     x - additional bits used together with NN in extended list mode
+ *     n - bits for "short" neighbour index, in extended list mode used as index
  *
  *     Tiles indexed in "short" list (T original tile)
  *           -  - 
@@ -45,17 +44,16 @@ public abstract class AbstractOsmMap implements OsmMap {
     private static final long TILE_X_MASK  = Const.MAX_TILE_NUMBER << TILE_X_SHIFT;
     private static final long TILE_Y_MASK  = Const.MAX_TILE_NUMBER << TILE_Y_SHIFT;
 
-    private static final int  TILE_EXT_SHIFT            = 24;
+    private static final int  TILE_EXT_SHIFT            = 30;
     private static final long TILE_EXT_MASK             = 1l << TILE_EXT_SHIFT;
-    private static final long TILE_MARKER_MASK          = 0xFFFFFFl;
-    private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT + 1;
+    static final long         TILE_MARKER_MASK          = 0xFFFFFFl;
+    private static final long TILE_EXT_INDEX_MASK       = 0x3FFFFFFFl;
+    private static final int  NEIGHBOUR_SHIFT           = TILE_EXT_SHIFT - 2;
     private static final long NEIGHBOUR_MASK            = 3l << NEIGHBOUR_SHIFT;
     private static final int  ONE_BIT_SHIFT             = 31;
     private static final long ONE_BIT_MASK              = 1l << ONE_BIT_SHIFT;
-    private static final int  INITIAL_EXTENDED_SET_SIZE = 1000;
 
-    private int     extendedBuckets = 0;
-    private int[][] extendedSet     = new int[INITIAL_EXTENDED_SET_SIZE][];
+    private final ExtendedTileSetStore extendedSets = new ExtendedTileSetStore();
 
     @Override
     public int tileX(long value) {
@@ -78,51 +76,30 @@ public abstract class AbstractOsmMap implements OsmMap {
      * @see OsmMap#getAllTiles(long)
      */
     @Override
-    public List<Integer> getAllTiles(long key) {
+    public IntSet getAllTiles(long key) {
 
         long value = get(key);
 
         if (value == 0) {
             return null;
-        }
-
-        int tx = tileX(value);
-        int ty = tileY(value);
-        int neighbour = neighbour(value);
-
-        List<Integer> result;
-
-        if ((value & TILE_EXT_MASK) != 0) {
-            int idx = (int) (value & TILE_MARKER_MASK);
-            result = new ArrayList<>(asList(extendedSet[idx]));
+        } else if ((value & TILE_EXT_MASK) != 0) {
+            int idx = (int) (value & TILE_EXT_INDEX_MASK);
+            return new IntArraySet(extendedSets.get(idx));
         } else {
-            result = parseMarker(value);
+            IntSet result = parseNeighbourBits(value);
+            result.add(TileCoord.encode(tileX(value), tileY(value)));
+            return result;
         }
 
-        // TODO: some tiles (neighbour-tiles) might be double-included in the list, is this a problem?!
-
-        // add the tile (and possible neighbours)
-        result.add(TileCoord.encode(tx, ty));
-        if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
-            result.add(TileCoord.encode(tx + 1, ty));
-        }
-        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
-            result.add(TileCoord.encode(tx, ty + 1));
-        }
-        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH_EAST) == OsmMap.NEIGHBOURS_SOUTH_EAST) {
-            result.add(TileCoord.encode(tx + 1, ty + 1));
-        }
-
-        return result;
     }
 
     @Override
-    public void updateInt(long key, Collection<Integer> tiles) {
-
-        List<Long> longTiles = tiles.stream().map(tile -> createValue(TileCoord.decodeX(tile), TileCoord.decodeY(tile), NEIGHBOURS_NONE)).collect(toList());
-
+    public void updateInt(long key, IntCollection tiles) {
+        LongArrayList longTiles = new LongArrayList();
+        for (int tile : tiles) {
+            longTiles.add(createValue(TileCoord.decodeX(tile), TileCoord.decodeY(tile), NEIGHBOURS_NONE));
+        }
         this.update(key, longTiles);
-
     }
 
     /**
@@ -141,13 +118,13 @@ public abstract class AbstractOsmMap implements OsmMap {
      * updates a value by adding a set of tiles to it. Might "overflow" into the list of additional tiles and modify it
      * accordingly.
      * 
-     * This can be used to implement {@link #update(long, Collection)}.
+     * This can be used to implement {@link #update(long, LongCollection)}.
      * 
      * @param originalValue the original value
      * @param tiles a collection of tiles to add
      * @return the updated value
      */
-    protected long updateValue(long originalValue, @NotNull Collection<Long> tiles) {
+    protected long updateValue(long originalValue, @NotNull LongCollection tiles) {
 
         long val = originalValue;
 
@@ -156,30 +133,25 @@ public abstract class AbstractOsmMap implements OsmMap {
 
         // neighbour list is already too large so we use the "large store"
         if ((val & TILE_EXT_MASK) != 0) {
-            int idx = (int) (val & TILE_MARKER_MASK);
-            appendNeighbours(idx, tiles);
-            return originalValue;
+            int idx = (int) (val & TILE_EXT_INDEX_MASK);
+            IntSet set = new IntOpenHashSet(extendedSets.get(idx));
+            tiles.forEach(tile -> set.addAll(decode(tile)));
+            int newSetIndex = extendedSets.add(set.toIntArray());
+            val |= TILE_EXT_MASK;
+            val &= ~TILE_EXT_INDEX_MASK; // overwrite any existing content with 0s
+            val |= newSetIndex;
+            return val;
         }
 
         // create a expanded temp set for neighbourhood tiles
-        Collection<Integer> expanded = new TreeSet<>();
+        IntSet expanded = new IntOpenHashSet();
         for (long tile : tiles) {
+            final int t = (int) (tile >>> TILE_Y_SHIFT);
+            expanded.add(t);
+            int ttx = TileCoord.decodeX(t);
+            int tty = TileCoord.decodeY(t);
 
-            int x = tileX(tile);
-            int y = tileY(tile);
-            int neighbour = neighbour(tile);
-
-            expanded.add(TileCoord.encode(x, y));
-
-            if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                expanded.add(TileCoord.encode(x + 1, y));
-            }
-            if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                expanded.add(TileCoord.encode(x, y + 1));
-            }
-            if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                expanded.add(TileCoord.encode(x + 1, y + 1));
-            }
+            parseNnBits(expanded, neighbour(tile), ttx, tty);
         }
 
         // now we use the 24 reserved bits for the tiles list..
@@ -212,7 +184,29 @@ public abstract class AbstractOsmMap implements OsmMap {
     }
 
     /**
-     * Start using the list of additional tiles instead of the bits directly in the value
+     * Check the NN bits and add tiles to result
+     * 
+     * @param result the IntSet holding the result
+     * @param neighbour the immediate neighbours
+     * @param tx tile x
+     * @param ty tile y
+     */
+    public void parseNnBits(IntSet result, int neighbour, int tx, int ty) {
+        // add possible neighbours
+        if ((neighbour & OsmMap.NEIGHBOURS_EAST) != 0) {
+            result.add(TileCoord.encode(tx + 1, ty));
+        }
+        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH) != 0) {
+            result.add(TileCoord.encode(tx, ty + 1));
+        }
+        if ((neighbour & OsmMap.NEIGHBOURS_SOUTH_EAST) == OsmMap.NEIGHBOURS_SOUTH_EAST) {
+            result.add(TileCoord.encode(tx + 1, ty + 1));
+        }
+    }
+
+    /**
+     * Start using an index for an {@link ExtendedTileSetStore}
+     * instead of the bits directly in the value
      * 
      * @param val the value to extend
      * @param tiles the List of additional tiles
@@ -220,73 +214,30 @@ public abstract class AbstractOsmMap implements OsmMap {
      */
     private long extendToNeighbourSet(long val, @NotNull Collection<Long> tiles) {
 
-        if ((val & TILE_MARKER_MASK) != 0) {
-            // add current stuff to tiles list
-            List<Integer> tmpList = parseMarker(val);
-            for (int i : tmpList) {
-                long tx = TileCoord.decodeX(i);
-                long ty = TileCoord.decodeY(i);
-                long temp = tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT;
+        IntSet tileSet = parseNeighbourBits(val);
+        tileSet.add(TileCoord.encode(tileX(val), tileY(val)));
+        tiles.forEach(tile -> tileSet.addAll(decode(tile)));
+        int extendedSetIndex = extendedSets.add(tileSet.toIntArray());
 
-                tiles.add(temp);
-            }
-
-            // delete old marker from val
-            val &= ~TILE_MARKER_MASK;
-        }
-
-        int cur = extendedBuckets++;
-
-        // if we don't have enough sets, increase the array...
-        if (cur >= extendedSet.length) {
-            if (extendedSet.length >= TILE_MARKER_MASK / 2) { // assumes TILE_MARKER_MASK starts at 0
-                throw new IllegalStateException("Too many extended tile entries to expand");
-            }
-            int[][] tmp = new int[2 * extendedSet.length][];
-            System.arraycopy(extendedSet, 0, tmp, 0, extendedSet.length);
-            extendedSet = tmp;
-        }
-
-        val |= 1l << TILE_EXT_SHIFT;
-        val |= (long) cur;
-
-        extendedSet[cur] = new int[0];
-
-        appendNeighbours(cur, tiles);
+        val |= TILE_EXT_MASK;
+        val &= ~TILE_EXT_INDEX_MASK; // overwrite any existing content with 0s
+        val |= extendedSetIndex;
 
         return val;
     }
 
-    /**
-     * Add tiles to the extended tile list for an element
-     * 
-     * @param index the index in to the array of the tile lists
-     * @param tiles a List containing the tile numbers
-     */
-    private void appendNeighbours(int index, @NotNull Collection<Long> tiles) {
-        int[] old = extendedSet[index];
-        int[] set = new int[4 * tiles.size()];
-        int pos = 0;
+    /** transforms a map value into a list of integer tile coords (using {@link TileCoord} encoding) */
+    private IntSet decode(long value) {
 
-        for (long l : tiles) {
-            int tx = tileX(l);
-            int ty = tileY(l);
-            int neighbour = neighbour(l);
+        IntSet result = new IntOpenHashSet();
 
-            set[pos++] = TileCoord.encode(tx, ty);
-            if ((neighbour & NEIGHBOURS_EAST) != 0) {
-                set[pos++] = TileCoord.encode(tx + 1, ty);
-            }
-            if ((neighbour & NEIGHBOURS_SOUTH) != 0) {
-                set[pos++] = TileCoord.encode(tx, ty + 1);
-            }
-            if (neighbour == NEIGHBOURS_SOUTH_EAST) {
-                set[pos++] = TileCoord.encode(tx + 1, ty + 1);
-            }
-        }
+        int tx = tileX(value);
+        int ty = tileY(value);
+        result.add(TileCoord.encode(tx, ty));
+        parseNnBits(result, neighbour(value), tx, ty);
 
-        int[] result = merge(old, set, pos);
-        extendedSet[index] = result;
+        return result;
+
     }
 
     /**
@@ -295,76 +246,29 @@ public abstract class AbstractOsmMap implements OsmMap {
      * @param value the encoded value
      * @return a list of tiles encoded in an int
      */
-    private List<Integer> parseMarker(long value) {
-        List<Integer> result = new ArrayList<>();
+    private IntSet parseNeighbourBits(long value) {
+        IntSet result = new IntArraySet();
+
         int tx = tileX(value);
         int ty = tileY(value);
 
-        for (int i = 0; i < 24; i++) {
-            // if bit is not set, continue..
-            if (((value >> i) & 1) == 0) {
-                continue;
-            }
+        parseNnBits(result, neighbour(value), tx, ty);
 
-            int v = i >= 12 ? i + 1 : i;
-
-            int tmpX = v % 5 - 2;
-            int tmpY = v / 5 - 2;
-
-            result.add(TileCoord.encode(tx + tmpX, ty + tmpY));
-        }
-        return result;
-    }
-
-    /**
-     * Merge two int arrays, removing dupes
-     * 
-     * @param old the original array
-     * @param add the additional array
-     * @param len the additional number of ints to allocate
-     * @return the new array
-     */
-    private static int[] merge(@NotNull int[] old, @NotNull int[] add, int len) {
-        int curLen = old.length;
-        int[] tmp = new int[curLen + len];
-        System.arraycopy(old, 0, tmp, 0, old.length);
-
-        for (int i = 0; i < len; i++) {
-            int toAdd = add[i];
-            boolean contained = false;
-
-            for (int j = 0; j < curLen; j++) {
-                if (toAdd == tmp[j]) {
-                    contained = true;
-                    break;
+        if ((value & TILE_MARKER_MASK) != 0) {
+            for (int i = 0; i < 24; i++) {
+                // if bit is not set, continue..
+                if (((value >> i) & 1) == 0) {
+                    continue;
                 }
-            }
 
-            if (!contained) {
-                tmp[curLen++] = toAdd;
+                int v = i >= 12 ? i + 1 : i;
+
+                int tmpX = v % 5 - 2;
+                int tmpY = v / 5 - 2;
+
+                result.add(TileCoord.encode(tx + tmpX, ty + tmpY));
             }
         }
-
-        int[] result = new int[curLen];
-        System.arraycopy(tmp, 0, result, 0, curLen);
-
-        return result;
-    }
-
-    /**
-     * Return a list with the contents of an int array
-     * 
-     * @param set the array
-     * @return a List of Integer
-     */
-    @NotNull
-    private static List<Integer> asList(@NotNull int[] set) {
-        List<Integer> result = new ArrayList<>();
-
-        for (int i = 0; i < set.length; i++) {
-            result.add(set[i]);
-        }
-
         return result;
     }
 

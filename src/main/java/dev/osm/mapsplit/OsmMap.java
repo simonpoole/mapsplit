@@ -12,9 +12,11 @@ package dev.osm.mapsplit;
  * <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-import java.util.Collection;
-import java.util.List;
 import java.util.stream.LongStream;
+
+import it.unimi.dsi.fastutil.ints.IntCollection;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.longs.LongCollection;
 
 /**
  * This is the central data structure of Mapsplit. It maps OSM element IDs to the tile(s) each element is located in. As
@@ -64,25 +66,24 @@ public interface OsmMap {
      * @param key the entries key (ID)
      * @param tiles a Collection of tiles in encoded form including neighbour bits
      */
-    public abstract void update(long key, Collection<Long> tiles);
+    public abstract void update(long key, LongCollection tiles);
 
     /**
-     * variant of {@link #update(long, Collection)} that takes individual tile coords (encoded with TileCoord) without
-     * neighbor information
+     * variant of {@link #update(long, LongCollection)} that takes tile coords encoded with {@link TileCoord})
      * 
      * @param key the entries key (ID)
-     * @param tiles a Collection of tiles in encoded form without neighbour bits
+     * @param tiles a Collection of tile coordinates in encoded form
      */
-    public abstract void updateInt(long key, Collection<Integer> tiles);
+    public abstract void updateInt(long key, IntCollection tiles);
 
     /**
      * returns a list of all tiles this key is in. This contains the base-tile, neighbours and tiles where this key is
-     * connected to other keys, e.g. by a way. The format of the integer is (tileX << 16 | tileY).
+     * connected to other keys, e.g. by a way.
      * 
      * @param key the node, way or relation we're looking at
-     * @return a list of all tiles where this key is used
+     * @return a set of all tiles (encoded using {@link TeCoord}) where this key is used
      */
-    public abstract List<Integer> getAllTiles(long key);
+    public abstract IntSet getAllTiles(long key);
 
     /**
      * for debugging this method tells you how much of the buckets are used. A load < 0,5 is desirable for good speed

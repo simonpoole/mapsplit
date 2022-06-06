@@ -20,7 +20,7 @@ apply plugin: 'java'
 apply plugin: "jacoco"
 apply plugin: 'eclipse'
 
-version = '0.4.0'
+version = '0.4.1'
 
 repositories {
     mavenCentral()
@@ -72,6 +72,7 @@ dependencies {
     compile 'ch.poole.geo:mbtiles4j:1.2.0'
     compile 'org.jetbrains:annotations:15.0'
     compile 'com.zaxxer:SparseBitSet:1.1'
+    compile 'it.unimi.dsi:fastutil:8.5.8'
     testCompile 'junit:junit:4.12'
 }
 

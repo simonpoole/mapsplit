@@ -5,3 +5,8 @@ build/
 dist/
 /.gradle/
 /bin/
+/l.msf
+/switzerland-gzip.msf
+/switzerland-index.msf
+/switzerland-normal.msf
+/switzerland.msf
