@@ -142,7 +142,7 @@ public abstract class AbstractOsmMap implements OsmMap {
         if ((val & TILE_EXT_MASK) != 0) {
             int idx = (int) (val & TILE_EXT_INDEX_MASK);
             IntSet set = new IntOpenHashSet(extendedSets.get(idx));
-            set.addAll(decode(tiles));
+            tiles.forEach(tile -> set.addAll(decode(tile)));
             int newSetIndex = extendedSets.add(set.toIntArray());
             val |= TILE_EXT_MASK;
             val &= ~TILE_EXT_INDEX_MASK; // overwrite any existing content with 0s
@@ -228,7 +228,8 @@ public abstract class AbstractOsmMap implements OsmMap {
             tiles.add(tx << TILE_X_SHIFT | ty << TILE_Y_SHIFT);
         }
 
-        IntSet tileSet = decode(tiles);
+        IntSet tileSet = new IntOpenHashSet();
+        tiles.forEach(tile -> tileSet.addAll(decode(tile)));
         int extendedSetIndex = extendedSets.add(tileSet.toIntArray());
 
         val |= TILE_EXT_MASK;
@@ -238,19 +239,17 @@ public abstract class AbstractOsmMap implements OsmMap {
         return val;
     }
 
-    /** transforms a list of map values into a list of integer tile coords (using {@link TileCoord} encoding) */
-    private IntSet decode(@NotNull Collection<Long> tiles) {
+    /** transforms a map value into a list of integer tile coords (using {@link TileCoord} encoding) */
+    private IntSet decode(long value) {
 
-        IntSet set = new IntOpenHashSet();
+        IntSet result = new IntOpenHashSet();
 
-        for (long l : tiles) {
-            int tx = tileX(l);
-            int ty = tileY(l);
-            set.add(TileCoord.encode(tx, ty));
-            parseNnBits(set, neighbour(l), tx, ty);
-        }
+        int tx = tileX(value);
+        int ty = tileY(value);
+        result.add(TileCoord.encode(tx, ty));
+        parseNnBits(result, neighbour(value), tx, ty);
 
-        return set;
+        return result;
 
     }
 
