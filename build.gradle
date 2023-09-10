@@ -12,7 +12,7 @@ buildscript {
 }
 
 plugins {
-    id "org.sonarqube" version "3.0"
+    id "org.sonarqube" version "4.0.0.2929"
 }
 
 apply plugin: "com.github.breadmoirai.github-release"
@@ -24,7 +24,7 @@ version = '0.4.0'
 
 repositories {
     mavenCentral()
-    maven { url 'http://nexus.onebusaway.org/nexus/content/repositories/public/' }
+    maven { url 'https://nexus.onebusaway.org/nexus/content/repositories/public/' }
 }
 
 ext {
@@ -38,15 +38,15 @@ task fatJar(type: Jar) {
         'Implementation-Version': "${project.version}",
         'Main-Class': 'dev.osm.mapsplit.MapSplit'
     }
-    baseName = project.name + '-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    archiveBaseName = project.name + '-all'
+    from { configurations.implementation.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
 fatJar.group = 'build'
 
 jacocoTestReport {
     reports {
-        xml.enabled true
+        xml.required=true
     }
 }
 
@@ -55,7 +55,7 @@ sonarqube {
         property "sonar.java.source","1.8"
         property "sonar.sourceEncoding","UTF-8"
         property "sonar.java.binaries", "build/classes/java/main/"
-        property "sonar.coverage.jacoco.xmlReportPaths","build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
+        property "sonar.coverage.jacoco.xmlReportPaths","build/reports/jacoco/test/jacocoTestReport.xml"
         property "sonar.qualitygate.wait", "true"
     }
 }
@@ -65,14 +65,14 @@ test{
 }
 
 dependencies {
-    compile 'org.openstreetmap.osmosis:osmosis-core:0.47'
-    compile 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
-    compile 'com.google.protobuf:protobuf-java:3.7.1'
-    compile 'commons-cli:commons-cli:1.4'
-    compile 'ch.poole.geo:mbtiles4j:1.2.0'
-    compile 'org.jetbrains:annotations:15.0'
-    compile 'com.zaxxer:SparseBitSet:1.1'
-    testCompile 'junit:junit:4.12'
+    implementation 'org.openstreetmap.osmosis:osmosis-core:0.47'
+    implementation 'org.openstreetmap.osmosis:osmosis-pbf:0.47'
+    implementation 'com.google.protobuf:protobuf-java:3.7.1'
+    implementation 'commons-cli:commons-cli:1.4'
+    implementation 'ch.poole.geo:mbtiles4j:1.2.0'
+    implementation 'org.jetbrains:annotations:15.0'
+    implementation 'com.zaxxer:SparseBitSet:1.1'
+    testImplementation 'junit:junit:4.12'
 }
 
 githubRelease {
@@ -82,6 +82,6 @@ githubRelease {
     releaseName "${version}"
     body ""
     FilenameFilter filter = { dir, filename -> filename.contains(version) }
-    releaseAssets = jar.destinationDir.listFiles filter
+    releaseAssets = new File(buildDir.getPath() + '/libs').listFiles filter
     overwrite true
 }
