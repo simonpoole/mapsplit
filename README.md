@@ -29,14 +29,14 @@ other sources, OpenStreetMap.
 ### Limitations
 
 The current implementation keeps the data structures required for assigning OSM objects to tiles in main memory. With 4GB of main memory 
-you can parse maps with up to 100 million nodes, however.
+you can parse maps with up to 100 million nodes.
 
 The maximum zoom levels tiles can be produced at is 16, as x and y tile numbers are packed in a 32 bit integer during processing. 
 Tiling large areas at zoom level 16 will create large numbers of tiles and should only be used with the optimization pass enabled. 
 
 If you need to process more than ~2'147'483'647 elements (nodes, ways and relations separately), use 
 the --max-ids options (set the values to the largest current element ids). While processing is then only limited by available memory, 
-the maximum number of objects that can have an extended tile list (that is the object needs to be copied to more than tiles in the immediate vincinity) 
+the maximum number of objects that can have an extended tile list (that is the object needs to be copied to more than tiles in the immediate vicinity) 
 is limited to a bit more than 16 million. This restriction will likely be removed in 
 an upcoming release.
 
